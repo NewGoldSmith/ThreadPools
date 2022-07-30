@@ -38,11 +38,15 @@ namespace SevOL {
 		)
 	, /*WINBASEAPI VOID WINAPI */CloseThreadpool/*(_Inout_ PTP_POOL ptpp)*/
 	};
+
+
 }
 
 int main()
 {
 	using namespace SevOL;
+
+
 	FILETIME filetime{};
 	const std::unique_ptr
 		< WSADATA
@@ -78,6 +82,22 @@ int main()
 		, /*In    PTP_POOL             ptpp*/&*ptpp
 	);
 
+
+
+	const std::unique_ptr
+		< SocketListenContext
+		, void (*)(SocketListenContext*)
+		> pListenSocket
+	{ []()
+		{
+			const auto pListenContext = new SocketListenContext;
+			return pListenContext;
+		}()
+	,[](_Inout_ SocketListenContext* pListenSocket)
+		{
+				delete pListenSocket;
+		}
+	};
 	const std::unique_ptr
 		< TP_CLEANUP_GROUP
 		, decltype(CloseThreadpoolCleanupGroup)*
@@ -100,21 +120,23 @@ int main()
 		, /*In_opt PTP_CLEANUP_GROUP_CANCEL_CALLBACK pfng */nullptr
 	);
 
-	InitSocketPool();
-
-	StartListen();
-	for (;;)
 	{
-		std::string strin;
-		std::getline(std::cin, strin);
-		if (strin == "quit")
+
+		StartListen(pListenSocket.get());
+		for (;;)
 		{
-			break;
+			std::string strin;
+			std::getline(std::cin, strin);
+			if (strin == "quit")
+			{
+				break;
+			}
+			else if (strin == "status") {
+				SevOL::ShowStatus();
+			}
 		}
-		else if (strin == "status") {
-			SevOL::ShowStatus();
-		}
+		EndListen(pListenSocket.get());
 	}
-	EndListen();
+
 	return 0;
 }

@@ -101,7 +101,10 @@ namespace SevOL {
 	{
 		if (pTPListen)
 		{
+			CancelThreadpoolIo(pTPListen);
+			WaitForThreadpoolIoCallbacks(pTPListen, TRUE);
 			CloseThreadpoolIo(pTPListen);
+			pTPListen = NULL;
 		}
 		SocketContext::~SocketContext();
 	}
@@ -114,19 +117,7 @@ namespace SevOL {
 			pTPListen = NULL;
 		}
 	}
-	//void SocketClearBuf(SocketContext* pSocket)
-	//{
-	//	SocketClearReadBuf(pSocket);
-	//	SocketClearWriteBuf(pSocket);
-	//}
-	//void SocketClearReadBuf(SocketContext* pSocket)
-	//{
-	//	ZeroMemory(pSocket->ReadBuf, BUFFER_SIZE);
-	//}
-	//void SocketClearWriteBuf(SocketContext* pSocket)
-	//{
-	//	ZeroMemory(pSocket->WriteBuf, BUFFER_SIZE);
-	//}
+
 	WSABUF* SocketInitWsaBuf(WSABUF* pwsabuf)
 	{
 		ZeroMemory(pwsabuf->buf, BUFFER_SIZE);

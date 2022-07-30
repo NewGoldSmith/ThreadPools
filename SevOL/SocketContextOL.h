@@ -19,7 +19,7 @@
 
 
 namespace SevOL {
-    constexpr auto ELM_SIZE = 16000;
+    constexpr auto ELM_SIZE = 0x4000;   //0x4000;/*16384*/
     constexpr auto BUFFER_SIZE = 1024;
     constexpr auto OL_READ_CYCLE = 1;
     constexpr auto OL_WRITE_CYCLE = 2;

@@ -17,6 +17,7 @@
 #include "MainOL.h"
 #include "SocketContextOL.h"
 #include <sal.h>
+#include "RingBuf.h"
 
 namespace SevOL {
 
@@ -44,23 +45,18 @@ namespace SevOL {
         PTP_TIMER             Timer
     );
 
-    void InitSocketPool();
     void CreanupAndPushSocket(SocketContext* pSocket);
-    SocketContext* PopSocket();
-    int StartListen();
+    int StartListen(SocketListenContext*);
     LPFN_ACCEPTEX GetAcceptEx(SocketListenContext*pAcceptSocket);
     LPFN_GETACCEPTEXSOCKADDRS GetGetAcceptExSockaddrs(SocketContext* pListenSocket);
-    void EndListen();
+    void EndListen(SocketListenContext*pListen);
     void ShowStatus();
     std::string SplitLastLineBreak(std::string &str);
     WSABUF* CopyStdStringToWsaString(std::string strsrc, WSABUF* pWsaBuf);
     bool DoSend(SocketContext* pAcceptSocket);
     bool DoRecv(SocketContext* pAcceptSocket);
     void PreAccept(SocketListenContext*pListenSocket);
-    bool SetIOCPOnSocketNoticeCompCB(SocketContext* pSocket);
-//    void SerializedPrint(SevOL::SocketContext* pSocket);
     FILETIME* Make1000mSecFileTime(FILETIME *pfiletime);
-//    void SerializedSocketDebugPrint(SevOL::SocketContext* pSocket);
 #ifdef _DEBUG
 #define    SockTRACE(pAcceptSocket) SerializedSocketDebugPrint( pAcceptSocket)
 #define    MyTRACE(lpsz) OutputDebugStringA(lpsz);
