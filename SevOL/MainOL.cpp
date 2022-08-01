@@ -123,18 +123,18 @@ int main()
 	{
 
 		StartListen(pListenSocket.get());
-		for (;;)
-		{
-			std::string strin;
-			std::getline(std::cin, strin);
-			if (strin == "quit")
-			{
-				break;
-			}
-			else if (strin == "status") {
-				SevOL::ShowStatus();
-			}
-		}
+		//for (;;)
+		//{
+		//	std::string strin;
+		//	std::getline(std::cin, strin);
+		//	if (strin == "quit")
+		//	{
+		//		break;
+		//	}
+		//	else if (strin == "status") {
+		//		SevOL::ShowStatus();
+		//	}
+		//}
 		EndListen(pListenSocket.get());
 	}
 
