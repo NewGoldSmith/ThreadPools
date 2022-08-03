@@ -16,10 +16,13 @@
 #include <exception>
 #include "MainR.h"
 #include "SocketContextR.h"
+#include "RingBuf.h"
 
 namespace ThreadPoolServerR {
 
-	VOID OnEvListenCB(
+    constexpr auto ELM_SIZE = 0x4000;
+
+    VOID OnEvListenCB(
         PTP_CALLBACK_INSTANCE Instance, 
         PVOID Context, 
         PTP_WAIT Wait, 
@@ -33,18 +36,6 @@ namespace ThreadPoolServerR {
         TP_WAIT_RESULT        WaitResult
     );
 
-    VOID CALLBACK SerializedSocketPrintCB(
-        PTP_CALLBACK_INSTANCE Instance,
-        PVOID                 Context,
-        PTP_WORK              Work
-    );
-
-    VOID CALLBACK SerializedSocketDebugPrintCB(
-        PTP_CALLBACK_INSTANCE Instance,
-        PVOID                 Context,
-        PTP_WORK              Work
-    );
-
     VOID CALLBACK MeasureConnectedPerSecCB(
         PTP_CALLBACK_INSTANCE Instance,
         PVOID                 Context,
@@ -55,12 +46,10 @@ namespace ThreadPoolServerR {
     int StartListen();
     void EndListen();
     void ShowStatus();
-    std::vector<std::string> SplitLineBreak(std::string& str);
-    void SerializedPrint(ThreadPoolServerR::SocketContext* pSocket);
+    void ClearStatus();
+    std::string SplitLastLineBreak(std::string& str);
     FILETIME* Make1000mSecFileTime(FILETIME *pfiletime);
-    void SerializedSocketDebugPrint(ThreadPoolServerR::SocketContext* pSocket);
 #ifdef _DEBUG
-#define    SockTRACE(pSocket) SerializedSocketDebugPrint( pSocket)
 #define    MyTRACE(lpsz) OutputDebugStringA(lpsz);
 #else
 #define SockTRACE __noop

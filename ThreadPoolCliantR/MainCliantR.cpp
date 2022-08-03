@@ -80,22 +80,52 @@ int main()
 		, /*In    PTP_POOL             ptpp*/&*ptpp
 	);
 
-	Sleep(2000);
-	TryConnect();
-
-	for (;;)
 	{
-		std::string strin;
-		std::getline(std::cin, strin);
-		if (strin == "quit")
+		const std::unique_ptr
+			< TP_CLEANUP_GROUP
+			, decltype(CloseThreadpoolCleanupGroup)*
+			> ptpcg
+		{ /*WINBASEAPI Must_inspect_result PTP_CLEANUP_GROUP WINAPI */CreateThreadpoolCleanupGroup(/*VOID*/)
+		, [](_Inout_ PTP_CLEANUP_GROUP ptpcg)
+			{
+				/*WINBASEAPI VOID WINAPI*/CloseThreadpoolCleanupGroupMembers
+				( /*Inout     PTP_CLEANUP_GROUP ptpcg                  */ptpcg
+				, /*In        BOOL              fCancelPendingCallbacks*/false
+				, /*Inout_opt PVOID             pvCleanupContext       */nullptr
+				);
+				/*WINBASEAPI VOID WINAPI*/CloseThreadpoolCleanupGroup(/*Inout PTP_CLEANUP_GROUP ptpcg*/ptpcg);
+			}
+		};
+		/*FORCEINLINE VOID*/SetThreadpoolCallbackCleanupGroup
+		( /*Inout  PTP_CALLBACK_ENVIRON              pcbe */&*pcbe
+			, /*In     PTP_CLEANUP_GROUP                 ptpcg*/&*ptpcg
+			, /*In_opt PTP_CLEANUP_GROUP_CANCEL_CALLBACK pfng */nullptr
+		);
+
 		{
-			break;
-		}
-		else if (strin == "tryconnect") {
+			Sleep(2000);
 			TryConnect();
-		}
-		else if (strin == "status") {
-			ShowStatus();
+
+			for (;;)
+			{
+				std::string strin;
+				transform(strin.begin(), strin.end(), strin.begin(), tolower);
+				std::getline(std::cin, strin);
+				if (strin == "quit")
+				{
+					break;
+				}
+				else if (strin == "connect") {
+					TryConnect();
+				}
+				else if (strin == "status") {
+					ShowStatus();
+				}
+				else if (strin == "clearstatus")
+				{
+					ClearStatus();
+				}
+			}
 		}
 	}
 }

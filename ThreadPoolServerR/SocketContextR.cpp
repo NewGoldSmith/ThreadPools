@@ -14,6 +14,7 @@ namespace ThreadPoolServerR {
 		, readlock{ 1 }
 		, WriteString(BUFFER_SIZE, '\0')
 		, writelock{ 1 }
+		,RemString(BUFFER_SIZE,'\0')
 		, vstr()
 		, vstrlock{1}
 		, hEvent(NULL)
@@ -30,20 +31,23 @@ namespace ThreadPoolServerR {
 		}
 		ReadString.resize(0);
 		WriteString.resize(0);
+		RemString.resize(0);
 	};
 
 	SocketContext::~SocketContext()
 	{
 		if (ptpwaitOnEvListen)
 		{
+			CancelIo((HANDLE)hSocket);
 			WaitForThreadpoolWaitCallbacks(ptpwaitOnEvListen, TRUE);
 			CloseThreadpoolWait(ptpwaitOnEvListen);
 		}
-		if (ptpwaitOnEvSocket)
-		{
-			WaitForThreadpoolWaitCallbacks(ptpwaitOnEvSocket, TRUE);
-			CloseThreadpoolWait(ptpwaitOnEvSocket);
-		}
+		//if (ptpwaitOnEvSocket)
+		//{
+		//	//CancelIo(hEvent);
+		//	//WaitForThreadpoolWaitCallbacks(ptpwaitOnEvSocket, TRUE);
+		//	CloseThreadpoolWait(ptpwaitOnEvSocket);
+		//}
 		CloseHandle(hEvent);
 		hEvent = NULL;
 		if (hSocket)
@@ -62,24 +66,24 @@ namespace ThreadPoolServerR {
 		}
 		if (ptpwaitOnEvListen)
 		{
+			CancelIo(hEvent);
 			WaitForThreadpoolWaitCallbacks(ptpwaitOnEvListen, TRUE);
 			CloseThreadpoolWait(ptpwaitOnEvListen);
 			ptpwaitOnEvListen = NULL;
 		}
-		if (ptpwaitOnEvSocket)
-		{
-			WaitForThreadpoolWaitCallbacks(ptpwaitOnEvSocket, TRUE);
-			CloseThreadpoolWait(ptpwaitOnEvSocket);
-			ptpwaitOnEvSocket = NULL;
-		}
+		//if (ptpwaitOnEvSocket)
+		//{
+		//	CancelIo(hEvent);
+		//	WaitForThreadpoolWaitCallbacks(ptpwaitOnEvSocket, TRUE);
+		//	CloseThreadpoolWait(ptpwaitOnEvSocket);
+		//	ptpwaitOnEvSocket = NULL;
+		//}
 		ID = 0;
-		readlock.acquire();
 		ReadString.clear();
 		readlock.release();
-		writelock.acquire();
 		WriteString.clear();
 		writelock.release();
-		vstrlock.acquire();
+		RemString.clear();
 		vstr.clear();
 		vstrlock.release();
 	}

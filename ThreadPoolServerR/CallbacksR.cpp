@@ -5,14 +5,14 @@
 //Server side
 #include "CallbacksR.h"
 
-
+using namespace std;
 namespace ThreadPoolServerR {
-	constexpr auto ELM_SIZE = 65535;
 	std::atomic_uint gAcceptedPerSec(0);
 	std::atomic_uint gID(0);
 	std::atomic_uint gCDel(0);
-	std::atomic_uint gMaxConnect(0);
+	std::atomic_uint gMaxConnecting(0);
 	ThreadPoolServerR::SocketContext gSockets[ELM_SIZE];
+	RingBuf gSocketsPool(gSockets, ELM_SIZE);
 	SocketContext* gpListenSocket(NULL);
 	PTP_TIMER gpTPTimer(NULL);
 
@@ -67,7 +67,7 @@ namespace ThreadPoolServerR {
 	{
 
 		SocketContext* gpListenSocket = (SocketContext*)Context;
-		//デバック用ID=0か確認。
+		//デバック用ID==0か確認。ELM_SIZEがべき乗になっているか確認。
 		assert(gpListenSocket->ID == 0);
 
 		WSANETWORKEVENTS NetworkEvents{};
@@ -80,34 +80,32 @@ namespace ThreadPoolServerR {
 			return;
 		}
 
-		int i = 0;
 		if (NetworkEvents.lNetworkEvents & FD_ACCEPT)
 		{
 			u_int uID(gID++);
-			SocketContext* pConnectSocket = &gSockets[uID];
-			pConnectSocket->ID = uID;
-			if ((pConnectSocket->hSocket = accept(gpListenSocket->hSocket, NULL, NULL)) == INVALID_SOCKET)
+			SocketContext* pSocket = gSocketsPool.Pop();
+			pSocket->ID = uID;
+			if ((pSocket->hSocket = accept(gpListenSocket->hSocket, NULL, NULL)) == INVALID_SOCKET)
 			{
 				int Err = WSAGetLastError();
-				std::cerr << "SevID:" + std::to_string(pConnectSocket->ID) + " accept. code:" + std::to_string(Err)+" File:"<<__FILE__<<" Line"<<  __LINE__ + "\r\n";
+				std::cerr << "SevID:" + std::to_string(pSocket->ID) + " accept. code:" + std::to_string(Err)+" File:"<<__FILE__<<" Line"<<  __LINE__ + "\r\n";
 			}
 
 			//接続ソケットの通知イベントを設定。
-			if (WSAEventSelect(pConnectSocket->hSocket, pConnectSocket->hEvent, FD_CLOSE | FD_READ))
+			if (WSAEventSelect(pSocket->hSocket, pSocket->hEvent, FD_CLOSE | FD_READ))
 			{
-				std::cerr << "SevID: " << std::to_string(pConnectSocket->ID)<< "err:WSAEventSelect" << __FILE__ << __LINE__ << std::endl;
+				std::cerr << "SevID: " << std::to_string(pSocket->ID)<< "err:WSAEventSelect" << __FILE__ << __LINE__ << std::endl;
 				return;
 			}
 
-			gMaxConnect.store( __max(gMaxConnect.load(), uID - gCDel));
-			pConnectSocket->vstr.push_back( "SevID:"+std::to_string(pConnectSocket->ID)+" Success Accepted Socket.\r\n");
-			SockTRACE(pConnectSocket);
+			gMaxConnecting.store( __max(gMaxConnecting.load(), uID - gCDel));
+			pSocket->vstr.push_back( "SevID:"+std::to_string(pSocket->ID)+" Success Accepted Socket.\r\n");
 
 			//イベントと待機コールバック関数の結びつけ。
-			if (!(pConnectSocket->ptpwaitOnEvSocket = CreateThreadpoolWait(OnEvSocketCB, pConnectSocket, &*pcbe)))
+			if (!(pSocket->ptpwaitOnEvSocket = CreateThreadpoolWait(OnEvSocketCB, pSocket, &*pcbe)))
 				return;
 			//待機コールバック開始。
-			SetThreadpoolWait(pConnectSocket->ptpwaitOnEvSocket, pConnectSocket->hEvent, NULL);
+			SetThreadpoolWait(pSocket->ptpwaitOnEvSocket, pSocket->hEvent, NULL);
 		}
 
 		//リッスンソケット待機イベント再設定。
@@ -128,98 +126,61 @@ namespace ThreadPoolServerR {
 			{
 				std::cerr << "Socket Err: " << Err << "FILE NAME: " << __FILE__ << "LINE: " << __LINE__ << std::endl;
 			}
+			CloseThreadpoolWait(Wait);
 			return;
 		}
 
 		if (NetworkEvents.lNetworkEvents & FD_READ)
 		{
-			pSocket->readlock.acquire();
-			std::string str(BUFFER_SIZE, '\0');
-			str.resize(recv(pSocket->hSocket, str.data(), str.size(), 0));
-			MyTRACE(("SevID:" + std::to_string(pSocket->ID)+" Received: "+str).c_str());
-			if (str.size()==SOCKET_ERROR)
+			pSocket->ReadString.resize(BUFFER_SIZE, '\0');
+			pSocket->ReadString.resize(recv(pSocket->hSocket, pSocket->ReadString.data(), pSocket->ReadString.size(), 0));
+			if (pSocket->ReadString.size()==SOCKET_ERROR)
 			{
-				str.clear();
+				pSocket->ReadString.clear();
 				Err = WSAGetLastError();
 				std::cerr << "Socket Err: " << Err << "FILE NAME: " << __FILE__ << " LINE: " << __LINE__ << std::endl;
-				pSocket->readlock.release();
+				pSocket->ReInitialize();
+				gSocketsPool.Push(pSocket);
+				CloseThreadpoolWait(Wait);
 				return;
 			}
-			else if (str.size() == 0)
+			else if (pSocket->ReadString.size() == 0)
 			{
-				pSocket->readlock.release();
+				//切断
+				pSocket->ReInitialize();
+				gSocketsPool.Push(pSocket);
+				CloseThreadpoolWait(Wait);
 				return;
 			}
 			else {
-				str = pSocket->ReadString + str;
-				std::vector<std::string> v = SplitLineBreak(str);
-				for (std::string& s : v) {
-					s += "\r\n";
-					MyTRACE(("SevID:" + std::to_string(pSocket->ID) + " Send    : " + s).c_str());
-					send(pSocket->hSocket, s.data(), s.length(), 0);
+				//エコー開始
+				pSocket->RemString += pSocket->ReadString;
+				pSocket->WriteString = SplitLastLineBreak(pSocket->RemString);
+				if (!pSocket->WriteString.empty())
+				{
+					pSocket->WriteString += "\r\n";
+					send(pSocket->hSocket, pSocket->WriteString.data(), pSocket->WriteString.size(), 0);
 				}
-				pSocket->ReadString = str;
-				pSocket->readlock.release();
+				SetThreadpoolWait(Wait, pSocket->hEvent, NULL);
+				return;
 			}
 		}
 
 		if (NetworkEvents.lNetworkEvents & FD_CLOSE)
 		{
 			pSocket->vstr.push_back(("SevID:"+std::to_string(pSocket->ID)+" Peer Closed.\r\n").c_str());
-			SockTRACE(pSocket);
+//			SockTRACE(pSocket);
+			pSocket->ReInitialize();
+			gSocketsPool.Push(pSocket);
 			//接続数が０になるとステータスを表示。
 			if (!(gID - (++gCDel) - 1))
 			{
 				ShowStatus();
 			}
+			CloseThreadpoolWait(Wait);
 			return;
 		}
 
-		if (NetworkEvents.lNetworkEvents & FD_CONNECT)
-		{
-			pSocket->vstr.push_back(("SevID: " + std::to_string(pSocket->ID) +" Connected.\r\n").c_str());
-			SockTRACE(pSocket);
-
-			return;
-		}
-
-		//接続ソケット待機イベント再設定。
-		SetThreadpoolWait(Wait, pSocket->hEvent, NULL);
-
-	}
-
-	VOID SerializedSocketPrintCB(PTP_CALLBACK_INSTANCE Instance, PVOID Context, PTP_WORK Work)
-	{
-		static std::binary_semaphore lock(1);
-		lock.acquire();
-		SocketContext* pSocket = (SocketContext*)Context;
-		pSocket->vstrlock.acquire();
-		for (std::string& str : pSocket->vstr)
-		{
-			std::cout << str<<std::flush;
-		}
-		pSocket->vstr.clear();
-		pSocket->vstrlock.release();
-		lock.release();
-		CloseThreadpoolWork(Work);
-		return VOID();
-	}
-
-	VOID SerializedSocketDebugPrintCB(PTP_CALLBACK_INSTANCE Instance, PVOID Context, PTP_WORK Work)
-	{
-		static std::binary_semaphore lock(1);
-		lock.acquire();
-		SocketContext* pSocket = (SocketContext*)Context;
-		pSocket->vstrlock.acquire();
-		for (std::string& str : pSocket->vstr)
-		{
-			OutputDebugStringA(str.c_str());
-		}
-		pSocket->vstr.clear();
-		pSocket->vstrlock.release();
-		lock.release();
-		CloseThreadpoolWork(Work);
-		return VOID();
 	}
 
 	VOID MeasureConnectedPerSecCB(PTP_CALLBACK_INSTANCE Instance, PVOID Context, PTP_TIMER Timer)
@@ -255,24 +216,30 @@ namespace ThreadPoolServerR {
 
 	int StartListen()
 	{
-		gpListenSocket = &gSockets[gID];
+		gpListenSocket = gSocketsPool.Pop();
 		//デバック用にIDをつける。リッスンソケットIDは0。
 		gpListenSocket->ID = gID++;
 
 		//ソケット作成
 		WSAPROTOCOL_INFOA prot_info{};
-		gpListenSocket->hSocket = WSASocket(AF_INET, SOCK_STREAM, IPPROTO_TCP, NULL, 0, WSA_FLAG_OVERLAPPED);
+		gpListenSocket->hSocket = WSASocket(AF_INET, SOCK_STREAM, IPPROTO_TCP, NULL, 0, 0/*WSA_FLAG_OVERLAPPED*/);
 		if (!gpListenSocket->hSocket)
 		{
-			return S_FALSE;
+			gpListenSocket->ReInitialize();
+			gSocketsPool.Push(gpListenSocket);
+			++gCDel;
+			return false;
 		}
 
 		//ソケットリユースオプション
 		BOOL yes = 1;
 		if (setsockopt(gpListenSocket->hSocket, SOL_SOCKET, SO_REUSEADDR, (const char*)&yes, sizeof(yes)))
 		{
+			gpListenSocket->ReInitialize();
+			gSocketsPool.Push(gpListenSocket);
 			++gCDel;
 			std::cerr << "setsockopt Error! Line:" << __LINE__ << "\r\n";
+			return false;
 		}
 
 		//ホストバインド設定
@@ -288,12 +255,19 @@ namespace ThreadPoolServerR {
 		{
 			if (rVal == 0)
 			{
-				fprintf(stderr, "socket error:Listen inet_pton return val 0\n");
+				cerr<< "socket error:Listen inet_pton return val 0\r\n";
+				gpListenSocket->ReInitialize();
+				gSocketsPool.Push(gpListenSocket);
+				++gCDel;
 				return false;
 			}
 			else if (rVal == -1)
 			{
 				Err = WSAGetLastError();
+				cerr << "socket error:Listen return val is -1 by inet_pton. Code:"<<to_string(Err)<<"\r\n";
+				gpListenSocket->ReInitialize();
+				gSocketsPool.Push(gpListenSocket);
+				++gCDel;
 				return false;
 			}
 		}
@@ -301,27 +275,53 @@ namespace ThreadPoolServerR {
 		if (rVal == SOCKET_ERROR)
 		{
 			Err = WSAGetLastError();
+			cerr << "Err! Listen Socket bind. Code:" << to_string(rVal) << " LINE:" << __LINE__ << "\r\n";
+			gpListenSocket->ReInitialize();
+			gSocketsPool.Push(gpListenSocket);
+			++gCDel;
 			return false;
 		}
 
 		//イベント設定
 		if (WSAEventSelect(gpListenSocket->hSocket, gpListenSocket->hEvent, FD_ACCEPT/* | FD_CLOSE | FD_READ | FD_CONNECT | FD_WRITE*/))
-			return 1;
+		{
+			cerr << "Err! Listen Socket WSAEventSelect. Code:" << to_string(WSAGetLastError()) << "LINE:" << __LINE__ << "\r\n";
+			gpListenSocket->ReInitialize();
+			gSocketsPool.Push(gpListenSocket);
+			++gCDel;
+			return false;
+		}
 
 		//イベントハンドラ設定
 		if (!(gpListenSocket->ptpwaitOnEvListen = CreateThreadpoolWait(OnEvListenCB, gpListenSocket, &*pcbe)))
-			return 1;
+		{
+			cerr << "Err! Listen Socket CreateThreadpoolWait. Code:" << to_string(WSAGetLastError()) << "__LINE__" << __LINE__ << "\r\n";
+			gpListenSocket->ReInitialize();
+			gSocketsPool.Push(gpListenSocket);
+			++gCDel;
+			return false;
+		}
 		SetThreadpoolWait(gpListenSocket->ptpwaitOnEvListen, gpListenSocket->hEvent, NULL);
 		std::cout << "Listen Start\r\n";
 
 		//リッスン
 		if (listen(gpListenSocket->hSocket, SOMAXCONN))
-			return 1;
+		{
+			cerr << "Err! Listen Socket listen. Code:" << to_string(WSAGetLastError()) << " LINE:" << __LINE__ << "\r\n";
+			gpListenSocket->ReInitialize();
+			gSocketsPool.Push(gpListenSocket);
+			++gCDel;
+			return false;
+		}
 
 		// Accepted/sec測定用タイマーコールバック設定
 		if (!(gpTPTimer = CreateThreadpoolTimer(MeasureConnectedPerSecCB, &gAcceptedPerSec, &*pcbe)))
 		{
-			std::cerr << "err:CreateThreadpoolTimer" << __FILE__ << __LINE__ << "\r\n";
+			std::cerr << "err:CreateThreadpoolTimer. Code:"<<to_string(WSAGetLastError())<<" LINE:" << __LINE__ << "\r\n";
+			gpListenSocket->ReInitialize();
+			gSocketsPool.Push(gpListenSocket);
+			++gCDel;
+			return false;
 		}
 		SetThreadpoolTimer(gpTPTimer, &*gp1000msecFT, 1000, 0);
 	}
@@ -336,44 +336,40 @@ namespace ThreadPoolServerR {
 
 	void ShowStatus()
 	{
-		std::cout << "Total Connected: " << ThreadPoolServerR::gID - 1 << "\r" << std::endl;
-		std::cout << "Current Connected: " << gID - gCDel - 1 << "\r" << std::endl;
-		std::cout << "Max Connecting: " << gMaxConnect << "\r" << std::endl;
-		std::cout << "Max Accepted/Sec: " << gAcceptedPerSec << "\r" << std::endl;
+		std::cout << "\r\nTotal Connected: " << to_string(ThreadPoolServerR::gID - 1) << "\r\n";
+		std::cout << "Current Connected: " << gID - gCDel - 1 << "\r\n";
+		std::cout << "Max Connecting: " << gMaxConnecting << "\r\n" ;
+		std::cout << "Max Accepted/Sec: " << gAcceptedPerSec << "\r\n";
 	}
 
-	std::vector<std::string> SplitLineBreak(std::string& str)
+	void ClearStatus()
 	{
-		std::vector<std::string> v;
-		for (;;)
+		gID = 1;
+		gCDel = 0;
+		gMaxConnecting = 0;
+		gAcceptedPerSec = 0;
+		ShowStatus();
+	}
+
+	std::string SplitLastLineBreak(std::string& str)
+	{
+		using namespace std;
+		std::string strsub;
+		auto pos = str.rfind("\r\n");
+		if (pos == string::npos)
 		{
-			std::string::size_type pos = str.find("\n");
-			if (pos != std::string::npos)
+			pos = str.rfind("\n");
+			if (pos != string::npos)
 			{
-				std::string s = str.substr(0, pos);
-				if (*(s.end() - 1) == '\r')
-				{
-					s.resize(s.size() - 1);
-				}
-				v.push_back(s);
-				str.erase(str.begin(), str.begin() + pos + 1);
-			}
-			else {
-				break;
+				strsub = str.substr(0, pos);
+				str.erase(0, pos + 1);
 			}
 		}
-		return v;
-	}
-
-	void SerializedPrint(ThreadPoolServerR::SocketContext * pSocket)
-	{
-		PTP_WORK ptpwork(NULL);
-		if (!(ptpwork = CreateThreadpoolWork(SerializedSocketPrintCB, pSocket, &*pcbe)))
-		{
-			std::cerr << "Err" << __FUNCTION__ << __LINE__ << std::endl;
-			return;
+		else {
+			strsub = str.substr(0, pos);
+			str.erase(0, pos + 2);
 		}
-		SubmitThreadpoolWork(ptpwork);
+		return strsub;
 	}
 
 	FILETIME* Make1000mSecFileTime(FILETIME * pFiletime)
@@ -383,18 +379,6 @@ namespace ThreadPoolServerR {
 		pFiletime->dwHighDateTime = ulDueTime.HighPart;
 		pFiletime->dwLowDateTime = ulDueTime.LowPart;
 		return pFiletime;
-	}
-
-	void SerializedSocketDebugPrint(ThreadPoolServerR::SocketContext* pSocket)
-	{
-		PTP_WORK ptpwork(NULL);
-		if (!(ptpwork = CreateThreadpoolWork(SerializedSocketDebugPrintCB
-			, pSocket, &*pcbe)))
-		{
-			std::cerr << "Err" << __FUNCTION__ << __LINE__ << std::endl;
-			return;
-		}
-		SubmitThreadpoolWork(ptpwork);
 	}
 
 }

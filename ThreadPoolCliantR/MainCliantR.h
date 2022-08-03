@@ -9,10 +9,14 @@
 #include <ws2tcpip.h>
 #include <Windows.h>
 #include <iostream>
+#include <algorithm>
 #include "CallbacksCliR.h"
 #include "SocketContextCliR.h"
 #pragma comment(lib, "ws2_32.lib")
 
+namespace ThreadPoolCliantR {
 
-constexpr auto MAX_TASKS = 3;
-constexpr auto MIN_TASKS = 1;
+	constexpr auto MAX_TASKS = 3;
+	constexpr auto MIN_TASKS = 1;
+
+}

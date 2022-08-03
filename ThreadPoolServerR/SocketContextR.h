@@ -34,6 +34,7 @@ namespace ThreadPoolServerR {
         std::binary_semaphore writelock;
         std::vector<std::string> vstr;
         std::binary_semaphore vstrlock;
+        std::string RemString;
         WSAEVENT hEvent;
         PTP_WAIT ptpwaitOnEvListen;
         PTP_WAIT ptpwaitOnEvSocket;

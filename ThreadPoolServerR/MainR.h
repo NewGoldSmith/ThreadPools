@@ -9,6 +9,7 @@
 #include <ws2tcpip.h>
 #include <Windows.h>
 #include <iostream>
+#include <algorithm>
 #include "CallbacksR.h"
 #include "SocketContextR.h"
 #pragma comment(lib, "ws2_32.lib")

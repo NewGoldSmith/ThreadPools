@@ -14,12 +14,8 @@ namespace ThreadPoolCliantR {
 		, ID(0)
 		, CountDown(0)
 		, ReadString(BUFFER_SIZE, '\0')
-		, readlock{ 1 }
 		, WriteString(BUFFER_SIZE, '\0')
-		, writelock{ 1 }
 		, hEvent(NULL)
-		, vstr()
-		, vstrlock(1) 
 		, tSend{}
 		, tRecv{}
 	{
@@ -57,15 +53,8 @@ namespace ThreadPoolCliantR {
 		}
 		ID = 0;
 		CountDown = 0;
-		readlock.acquire();
 		ReadString.clear();
-		readlock.release();
-		writelock.acquire();
 		WriteString.clear();
-		writelock.release();
-		vstrlock.acquire();
-		vstr.clear();
-		vstrlock.release();
 	}
 
 	std::time_t SocketContext::GetMaxResponce()

@@ -176,6 +176,7 @@
   <ItemGroup>
     <ClInclude Include="CallbacksR.h" />
     <ClInclude Include="MainR.h" />
+    <ClInclude Include="RingBuf.h" />
     <ClInclude Include="SocketContextR.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

@@ -15,35 +15,32 @@
 #include <cassert>
 #include <exception>
 #include <SYS\Timeb.h >
-
 #include "CallbacksCliR.h"
 
-constexpr auto BUFFER_SIZE = 1024;
-constexpr auto N_COUNTDOWNS = 7;
-
 namespace ThreadPoolCliantR {
+
+	constexpr auto BUFFER_SIZE = 1024;
+	constexpr auto N_COUNTDOWNS = 7;
+
 	class SocketContext {
 	public:
 		SocketContext();
 		SocketContext(SocketContext&& moveSocket) = delete;
-		SocketContext(SocketContext& Socket)=delete;
+		SocketContext(SocketContext& Socket) = delete;
 		~SocketContext();
 		void ReInitialize();
 		std::time_t GetMaxResponce();
 		std::time_t GetMinResponce();
 		SOCKET hSocket;
 		u_short ID;
-		u_int CountDown;
+		int CountDown;
 		std::string ReadString;
-		std::binary_semaphore readlock;
 		std::string WriteString;
-		std::binary_semaphore writelock;
+		std::string RemString;
+		std::string DispString;
 		WSAEVENT hEvent;
-		std::vector<std::string> vstr;
-		std::binary_semaphore vstrlock;
-		SYSTEMTIME tSend[N_COUNTDOWNS+1];
-		SYSTEMTIME tRecv[N_COUNTDOWNS+1];
+		SYSTEMTIME tSend[N_COUNTDOWNS + 1];
+		SYSTEMTIME tRecv[N_COUNTDOWNS + 1];
 	};
-
 
 }
