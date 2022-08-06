@@ -3,6 +3,7 @@
 //https ://opensource.org/licenses/mit-license.php
 #pragma once
 #include <exception>
+//#define NO_CONFIRM_RINGBUF
 template <class T>class RingBuf
 {
 public:
@@ -21,35 +22,16 @@ public:
 			ppBuf[i] = &pBufIn[i];
 		}
 	}
-
-	RingBuf(RingBuf& obj)
-		:ppBuf(NULL)
-		, size(obj.size)
-		, front(obj.front)
-		, end(obj.end)
-		, mask(obj.mask)
-	{
-		ppBuf = new T * [size];
-		for (size_t i(0); i < size; ++i)
-		{
-			ppBuf[i] = &obj.pBufIn[i];
-		}
-	}
-
-	RingBuf(RingBuf&& obj)
-		:ppBuf(obj.ppBuf)
-		, size(obj.size)
-		, front(obj.front)
-		, end(obj.end)
-		, mask(obj.mask)
-	{}
-
+	RingBuf(RingBuf& obj) = delete;
+	RingBuf(RingBuf&& obj) = delete;
 	~RingBuf()
 	{
 		delete[]ppBuf;
 	}
+
 	T* Pop()
 	{
+#ifndef NO_CONFIRM_RINGBUF
 		try {
 			if (front+1  < end)
 			{
@@ -62,12 +44,15 @@ public:
 			std::cout << e.what() << std::endl;
 			std::exit(1);
 		}
+#endif // !NO_CONFIRM_RINGBUF
 		T** ppT = &ppBuf[end & mask];
 		++end;
 		return *ppT;
 	}
+
 	void Push(T* pT)
 	{
+#ifndef NO_CONFIRM_RINGBUF
 		try {
 			if (front + 1 == end +size)
 			{
@@ -80,6 +65,7 @@ public:
 			std::cout << e.what() << "\r\n";
 			std::exit(1);
 		}
+#endif // !NO_CONFIRM_RINGBUF
 		++front;
 		ppBuf[front & mask] = pT;
 	}

@@ -4,16 +4,18 @@
 
 //Server side
 #pragma once
+#pragma comment(lib, "ws2_32.lib")
 #include <WinSock2.h>
 #include <MSWSock.h>
 #include <ws2tcpip.h>
 #include <Windows.h>
 #include <iostream>
+#include <algorithm>
+#include <iostream>
 #include "CallbacksOL.h"
 #include "SocketContextOL.h"
 
 
-#pragma comment(lib, "ws2_32.lib")
 
-constexpr auto MAX_TASKS = 3;
+constexpr auto MAX_TASKS = 5;
 constexpr auto MIN_TASKS = 2;

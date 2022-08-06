@@ -99,13 +99,14 @@ namespace ThreadPoolServerR {
 			}
 
 			gMaxConnecting.store( __max(gMaxConnecting.load(), uID - gCDel));
-			pSocket->vstr.push_back( "SevID:"+std::to_string(pSocket->ID)+" Success Accepted Socket.\r\n");
+//			pSocket->vstr.push_back( "SevID:"+std::to_string(pSocket->ID)+" Success Accepted Socket.\r\n");
 
 			//イベントと待機コールバック関数の結びつけ。
-			if (!(pSocket->ptpwaitOnEvSocket = CreateThreadpoolWait(OnEvSocketCB, pSocket, &*pcbe)))
+			PTP_WAIT pTPWait(NULL);
+			if (!(pTPWait = CreateThreadpoolWait(OnEvSocketCB, pSocket, &*pcbe)))
 				return;
 			//待機コールバック開始。
-			SetThreadpoolWait(pSocket->ptpwaitOnEvSocket, pSocket->hEvent, NULL);
+			SetThreadpoolWait(pTPWait, pSocket->hEvent, NULL);
 		}
 
 		//リッスンソケット待機イベント再設定。
@@ -132,11 +133,11 @@ namespace ThreadPoolServerR {
 
 		if (NetworkEvents.lNetworkEvents & FD_READ)
 		{
-			pSocket->ReadString.resize(BUFFER_SIZE, '\0');
-			pSocket->ReadString.resize(recv(pSocket->hSocket, pSocket->ReadString.data(), pSocket->ReadString.size(), 0));
-			if (pSocket->ReadString.size()==SOCKET_ERROR)
+			pSocket->Buf.resize(BUFFER_SIZE, '\0');
+			pSocket->Buf.resize(recv(pSocket->hSocket, pSocket->Buf.data(), pSocket->Buf.size(), 0));
+			if (pSocket->Buf.size()==SOCKET_ERROR)
 			{
-				pSocket->ReadString.clear();
+				pSocket->Buf.clear();
 				Err = WSAGetLastError();
 				std::cerr << "Socket Err: " << Err << "FILE NAME: " << __FILE__ << " LINE: " << __LINE__ << std::endl;
 				pSocket->ReInitialize();
@@ -144,7 +145,7 @@ namespace ThreadPoolServerR {
 				CloseThreadpoolWait(Wait);
 				return;
 			}
-			else if (pSocket->ReadString.size() == 0)
+			else if (pSocket->Buf.size() == 0)
 			{
 				//切断
 				pSocket->ReInitialize();
@@ -154,12 +155,12 @@ namespace ThreadPoolServerR {
 			}
 			else {
 				//エコー開始
-				pSocket->RemString += pSocket->ReadString;
-				pSocket->WriteString = SplitLastLineBreak(pSocket->RemString);
-				if (!pSocket->WriteString.empty())
+				pSocket->RemString += pSocket->Buf;
+				pSocket->Buf = SplitLastLineBreak(pSocket->RemString);
+				if (!pSocket->Buf.empty())
 				{
-					pSocket->WriteString += "\r\n";
-					send(pSocket->hSocket, pSocket->WriteString.data(), pSocket->WriteString.size(), 0);
+					pSocket->Buf += "\r\n";
+					send(pSocket->hSocket, pSocket->Buf.data(), pSocket->Buf.size(), 0);
 				}
 				SetThreadpoolWait(Wait, pSocket->hEvent, NULL);
 				return;
@@ -168,8 +169,6 @@ namespace ThreadPoolServerR {
 
 		if (NetworkEvents.lNetworkEvents & FD_CLOSE)
 		{
-			pSocket->vstr.push_back(("SevID:"+std::to_string(pSocket->ID)+" Peer Closed.\r\n").c_str());
-//			SockTRACE(pSocket);
 			pSocket->ReInitialize();
 			gSocketsPool.Push(pSocket);
 			//接続数が０になるとステータスを表示。

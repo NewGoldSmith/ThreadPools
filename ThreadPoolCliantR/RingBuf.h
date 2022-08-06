@@ -3,6 +3,7 @@
 //https ://opensource.org/licenses/mit-license.php
 #pragma once
 #include <exception>
+#define NO_CONFIRM_RINGBUF
 template <class T>class RingBuf
 {
 public:
@@ -21,47 +22,50 @@ public:
 			ppBuf[i] = &pBufIn[i];
 		}
 	}
-
 	RingBuf(RingBuf& obj) = delete;
-
 	RingBuf(RingBuf&& obj) = delete;
-
 	~RingBuf()
 	{
 		delete[]ppBuf;
 	}
-	T* Pop()
+
+inline	T* Pop()
 	{
+#ifndef NO_CONFIRM_RINGBUF
 		try {
 			if (front+1  < end)
 			{
-				throw std::runtime_error("Err! RingBuf.Pop (front&mask)+1 == (end&mask)\r\n"); // 例外送出
+				throw std::out_of_range("Err! RingBuf.Pop (front&mask)+1 == (end&mask)\r\n"); // 例外送出
 			}
 		}
-		catch (std::exception& e) {
+		catch (std::out_of_range& e) {
 			// 例外を捕捉
 			// エラー理由を出力する
 			std::cout << e.what() << std::endl;
 			std::exit(1);
 		}
+#endif // !NO_CONFIRM_RINGBUF
 		T** ppT = &ppBuf[end & mask];
 		++end;
 		return *ppT;
 	}
-	void Push(T* pT)
+
+inline	void Push(T* pT)
 	{
+#ifndef NO_CONFIRM_RINGBUF
 		try {
 			if (front + 1 == end +size)
 			{
-				throw std::runtime_error("Err! RingBuf.Push (front&mask) + 1 == (end&mask)\r\n"); // 例外送出
+				throw std::out_of_range("Err! RingBuf.Push (front&mask) + 1 == (end&mask)\r\n"); // 例外送出
 			}
 		}
-		catch (std::exception& e) {
+		catch (std::out_of_range& e) {
 			// 例外を捕捉
 			// エラー理由を出力する
 			std::cout << e.what() << "\r\n";
 			std::exit(1);
 		}
+#endif // !NO_CONFIRM_RINGBUF
 		++front;
 		ppBuf[front & mask] = pT;
 	}

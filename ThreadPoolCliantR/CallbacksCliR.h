@@ -21,8 +21,8 @@
 namespace ThreadPoolCliantR {
 
 	constexpr auto ELM_SIZE = 0x4000;
-	constexpr auto NUM_THREAD = 4;
-	constexpr auto NUM_CONNECT = 2000;
+	constexpr auto NUM_THREAD = 3;
+	constexpr auto NUM_CONNECT = 3000;
 
 	class SocketContext;
 

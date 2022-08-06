@@ -28,15 +28,9 @@ namespace ThreadPoolServerR {
         void ReInitialize();
         SOCKET hSocket;
         u_short ID;
-        std::string ReadString;
-        std::binary_semaphore readlock;
-        std::string WriteString;
-        std::binary_semaphore writelock;
-        std::vector<std::string> vstr;
-        std::binary_semaphore vstrlock;
+        std::string Buf;
         std::string RemString;
         WSAEVENT hEvent;
         PTP_WAIT ptpwaitOnEvListen;
-        PTP_WAIT ptpwaitOnEvSocket;
     };
 }

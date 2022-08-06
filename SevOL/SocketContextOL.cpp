@@ -20,7 +20,7 @@ namespace SevOL {
 		,WriteBuf(BUFFER_SIZE, '\0')
 		,RemBuf(BUFFER_SIZE, '\0')
 		,ID(0)
-		,usCycle(0)
+		,Dir(0)
 		,NumberOfBytesSent(0)
 		, NumberOfBytesRecvd(0)
 		,flags(0)
@@ -31,6 +31,7 @@ namespace SevOL {
 		wsaWriteBuf.len = WriteBuf.length();
 		wsaRemBuf.buf = RemBuf.data();
 		wsaRemBuf.len = RemBuf.length();
+		hEvent=WSACreateEvent();
 	};
 
 	SocketContext::~SocketContext()
@@ -40,6 +41,10 @@ namespace SevOL {
 			shutdown(hSocket, SD_SEND);
 			closesocket(hSocket);
 			hSocket = NULL;
+		}
+		if (hEvent)
+		{
+			WSACloseEvent(hEvent);
 		}
 	}
 	void SocketContext::ReInitialize()
@@ -63,7 +68,7 @@ namespace SevOL {
 		wsaRemBuf.buf = ReadBuf.data();
 		wsaRemBuf.len = ReadBuf.length();
 		ID = 0;
-		usCycle = 0;
+		Dir = 0;
 		NumberOfBytesSent = 0;
 		NumberOfBytesRecvd = 0;
 		flags = 0;
@@ -118,10 +123,4 @@ namespace SevOL {
 		}
 	}
 
-	WSABUF* SocketInitWsaBuf(WSABUF* pwsabuf)
-	{
-		ZeroMemory(pwsabuf->buf, BUFFER_SIZE);
-		pwsabuf->len = BUFFER_SIZE;
-		return pwsabuf;
-	}
 }

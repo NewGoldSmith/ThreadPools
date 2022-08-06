@@ -10,16 +10,10 @@ namespace ThreadPoolServerR {
 	SocketContext::SocketContext()
 		:hSocket(NULL)
 		, ID(0)
-		, ReadString(BUFFER_SIZE, '\0')
-		, readlock{ 1 }
-		, WriteString(BUFFER_SIZE, '\0')
-		, writelock{ 1 }
 		,RemString(BUFFER_SIZE,'\0')
-		, vstr()
-		, vstrlock{1}
+		,Buf(BUFFER_SIZE,'\0')
 		, hEvent(NULL)
 		, ptpwaitOnEvListen(NULL)
-		, ptpwaitOnEvSocket(NULL)
 	{
 		try {
 			hEvent = WSACreateEvent();
@@ -29,9 +23,8 @@ namespace ThreadPoolServerR {
 		catch (std::exception& e) {
 			std::cout << e.what() << std::endl;
 		}
-		ReadString.resize(0);
-		WriteString.resize(0);
 		RemString.resize(0);
+		Buf.resize(0);
 	};
 
 	SocketContext::~SocketContext()
@@ -42,12 +35,6 @@ namespace ThreadPoolServerR {
 			WaitForThreadpoolWaitCallbacks(ptpwaitOnEvListen, TRUE);
 			CloseThreadpoolWait(ptpwaitOnEvListen);
 		}
-		//if (ptpwaitOnEvSocket)
-		//{
-		//	//CancelIo(hEvent);
-		//	//WaitForThreadpoolWaitCallbacks(ptpwaitOnEvSocket, TRUE);
-		//	CloseThreadpoolWait(ptpwaitOnEvSocket);
-		//}
 		CloseHandle(hEvent);
 		hEvent = NULL;
 		if (hSocket)
@@ -71,20 +58,8 @@ namespace ThreadPoolServerR {
 			CloseThreadpoolWait(ptpwaitOnEvListen);
 			ptpwaitOnEvListen = NULL;
 		}
-		//if (ptpwaitOnEvSocket)
-		//{
-		//	CancelIo(hEvent);
-		//	WaitForThreadpoolWaitCallbacks(ptpwaitOnEvSocket, TRUE);
-		//	CloseThreadpoolWait(ptpwaitOnEvSocket);
-		//	ptpwaitOnEvSocket = NULL;
-		//}
 		ID = 0;
-		ReadString.clear();
-		readlock.release();
-		WriteString.clear();
-		writelock.release();
 		RemString.clear();
-		vstr.clear();
-		vstrlock.release();
+		Buf.clear();
 	}
 }

@@ -9,17 +9,20 @@
 #include <ws2tcpip.h>
 #include <MSWSock.h>
 #include <Windows.h>
-#include <tchar.h>
+//#include <tchar.h>
 #include <iostream>
 #include <string>
 #include <semaphore>
 #include <exception>
+#include <algorithm>
 #include "MainOL.h"
 #include "SocketContextOL.h"
-#include <sal.h>
+//#include <sal.h>
 #include "RingBuf.h"
 
 namespace SevOL {
+    constexpr auto ELM_SIZE = 0x4000;   //0x4000;/*16384*/
+    constexpr auto PRE_ACCEPT = 1;
 
     VOID CALLBACK OnListenCompCB(
         PTP_CALLBACK_INSTANCE Instance,
@@ -45,15 +48,14 @@ namespace SevOL {
         PTP_TIMER             Timer
     );
 
-    void CreanupAndPushSocket(SocketContext* pSocket);
+    void CleanupSocket(SocketContext* pSocket);
     int StartListen(SocketListenContext*);
     LPFN_ACCEPTEX GetAcceptEx(SocketListenContext*pAcceptSocket);
     LPFN_GETACCEPTEXSOCKADDRS GetGetAcceptExSockaddrs(SocketContext* pListenSocket);
     void EndListen(SocketListenContext*pListen);
     void ShowStatus();
     std::string SplitLastLineBreak(std::string &str);
-    WSABUF* CopyStdStringToWsaString(std::string strsrc, WSABUF* pWsaBuf);
-    bool DoSend(SocketContext* pAcceptSocket);
+     bool DoSend(SocketContext* pAcceptSocket);
     bool DoRecv(SocketContext* pAcceptSocket);
     void PreAccept(SocketListenContext*pListenSocket);
     FILETIME* Make1000mSecFileTime(FILETIME *pfiletime);

@@ -19,14 +19,17 @@
 
 
 namespace SevOL {
-    constexpr auto ELM_SIZE = 0x4000;   //0x4000;/*16384*/
     constexpr auto BUFFER_SIZE = 1024;
-    constexpr auto OL_READ_CYCLE = 1;
-    constexpr auto OL_WRITE_CYCLE = 2;
+    constexpr auto OL_RECV_CYCLE = 1;
+    constexpr auto OL_SEND_CYCLE = 2;
 
     using namespace std;
- 
-    class SocketContext :public OVERLAPPED {
+    struct DirOVERLAPPED :public WSAOVERLAPPED {
+        DirOVERLAPPED(int dir) :WSAOVERLAPPED{},Dir(dir) {}
+        const int Dir;
+    };
+
+    class SocketContext :public WSAOVERLAPPED {
     public:
         SocketContext();
         ~SocketContext();
@@ -42,11 +45,10 @@ namespace SevOL {
         string WriteBuf;
         string RemBuf;
         u_short ID;
-        u_short usCycle;
+        u_short Dir;
         DWORD NumberOfBytesSent;
         DWORD NumberOfBytesRecvd;
         DWORD flags;
-
     };
 
     class SocketListenContext
@@ -59,5 +61,4 @@ namespace SevOL {
         PTP_IO pTPListen;
     };
 
-    WSABUF* SocketInitWsaBuf(WSABUF* pwsabuf);
 }

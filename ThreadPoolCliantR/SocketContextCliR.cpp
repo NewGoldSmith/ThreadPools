@@ -55,6 +55,7 @@ namespace ThreadPoolCliantR {
 		CountDown = 0;
 		ReadString.clear();
 		WriteString.clear();
+		RemString.clear();
 	}
 
 	std::time_t SocketContext::GetMaxResponce()
