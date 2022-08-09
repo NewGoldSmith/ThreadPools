@@ -21,7 +21,7 @@
 #include "RingBuf.h"
 
 namespace SevOL {
-    constexpr auto ELM_SIZE = 0x4000;   //0x4000;/*16384*/
+    constexpr auto ELM_SIZE = 0x4;   //0x4000;/*16384*/
     constexpr auto PRE_ACCEPT = 1;
 
     VOID CALLBACK OnListenCompCB(
@@ -42,11 +42,37 @@ namespace SevOL {
         PTP_IO                Io
     );
 
+    VOID CALLBACK FirstAcceptWorkCB(
+        _Inout_     PTP_CALLBACK_INSTANCE Instance,
+        _Inout_opt_ PVOID                 Context,
+        _Inout_     PTP_WORK              Work
+    );
+
+    VOID CALLBACK SendWorkCB(
+        _Inout_     PTP_CALLBACK_INSTANCE Instance,
+        _Inout_opt_ PVOID                 Context,
+        _Inout_     PTP_WORK              Work
+    );
+
+    VOID CALLBACK RecvWorkCB(
+        _Inout_     PTP_CALLBACK_INSTANCE Instance,
+        _Inout_opt_ PVOID                 Context,
+        _Inout_     PTP_WORK              Work
+    );
+
+
     VOID CALLBACK MeasureConnectedPerSecCB(
         PTP_CALLBACK_INSTANCE Instance,
         PVOID                 Context,
         PTP_TIMER             Timer
     );
+
+    VOID CALLBACK PreAcceptCB(
+        _Inout_     PTP_CALLBACK_INSTANCE Instance,
+        _Inout_opt_ PVOID                 Context,
+        _Inout_     PTP_WORK              Work
+    );
+
 
     void CleanupSocket(SocketContext* pSocket);
     int StartListen(SocketListenContext*);
@@ -57,7 +83,7 @@ namespace SevOL {
     std::string SplitLastLineBreak(std::string &str);
      bool DoSend(SocketContext* pAcceptSocket);
     bool DoRecv(SocketContext* pAcceptSocket);
-    void PreAccept(SocketListenContext*pListenSocket);
+    bool PreAccept(SocketListenContext*pListenSocket);
     FILETIME* Make1000mSecFileTime(FILETIME *pfiletime);
 #ifdef _DEBUG
 #define    SockTRACE(pAcceptSocket) SerializedSocketDebugPrint( pAcceptSocket)

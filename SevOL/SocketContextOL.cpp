@@ -14,28 +14,31 @@ namespace SevOL {
 		:
 		wsaReadBuf{}
 		,wsaWriteBuf{}
-		,wsaRemBuf{}
 		,hSocket(NULL)
 		,ReadBuf(BUFFER_SIZE,'\0')
 		,WriteBuf(BUFFER_SIZE, '\0')
 		,RemBuf(BUFFER_SIZE, '\0')
 		,ID(0)
-		,Dir(0)
+		,Dir(eDir::OL_NOT_SELECTED)
 		,NumberOfBytesSent(0)
 		, NumberOfBytesRecvd(0)
 		,flags(0)
+		,pTPIo(0)
 	{
 		wsaReadBuf.buf = ReadBuf.data();
 		wsaReadBuf.len = ReadBuf.length();
 		wsaWriteBuf.buf = WriteBuf.data();
 		wsaWriteBuf.len = WriteBuf.length();
-		wsaRemBuf.buf = RemBuf.data();
-		wsaRemBuf.len = RemBuf.length();
+		RemBuf.clear();
 		hEvent=WSACreateEvent();
 	};
 
 	SocketContext::~SocketContext()
 	{
+		//if (pTPIo)
+		//{
+		//	CloseThreadpoolIo(pTPIo);
+		//}
 		if (hSocket)
 		{
 			shutdown(hSocket, SD_SEND);
@@ -49,6 +52,11 @@ namespace SevOL {
 	}
 	void SocketContext::ReInitialize()
 	{
+		//if (pTPIo)
+		//{
+		//	CloseThreadpoolIo(pTPIo);
+		//	pTPIo = NULL;
+		//}
 		if (hSocket)
 		{
 			shutdown(hSocket, SD_SEND);
@@ -64,11 +72,8 @@ namespace SevOL {
 		wsaWriteBuf.buf = ReadBuf.data();
 		wsaWriteBuf.len = ReadBuf.length();
 		RemBuf.clear();
-		RemBuf.resize(BUFFER_SIZE, '\0');
-		wsaRemBuf.buf = ReadBuf.data();
-		wsaRemBuf.len = ReadBuf.length();
 		ID = 0;
-		Dir = 0;
+		Dir = eDir::OL_NOT_SELECTED;
 		NumberOfBytesSent = 0;
 		NumberOfBytesRecvd = 0;
 		flags = 0;
@@ -106,21 +111,21 @@ namespace SevOL {
 	{
 		if (pTPListen)
 		{
-			CancelThreadpoolIo(pTPListen);
-			WaitForThreadpoolIoCallbacks(pTPListen, TRUE);
-			CloseThreadpoolIo(pTPListen);
+//			CancelThreadpoolIo(pTPListen);
+//			WaitForThreadpoolIoCallbacks(pTPListen, TRUE);
+//			CloseThreadpoolIo(pTPListen);
 			pTPListen = NULL;
 		}
-		SocketContext::~SocketContext();
+//		SocketContext::~SocketContext();
 	}
 	void SocketListenContext::ReInitialize()
 	{
 		SocketContext::ReInitialize();
-		if (pTPListen)
-		{
-			CloseThreadpoolIo(pTPListen);
-			pTPListen = NULL;
-		}
+		//if (pTPListen)
+		//{
+		//	CloseThreadpoolIo(pTPListen);
+		//	pTPListen = NULL;
+		//}
 	}
 
 }

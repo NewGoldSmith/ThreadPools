@@ -20,8 +20,8 @@
 
 namespace SevOL {
     constexpr auto BUFFER_SIZE = 1024;
-    constexpr auto OL_RECV_CYCLE = 1;
-    constexpr auto OL_SEND_CYCLE = 2;
+    //constexpr auto OL_RECV_CYCLE = 1;
+    //constexpr auto OL_SEND_CYCLE = 2;
 
     using namespace std;
     struct DirOVERLAPPED :public WSAOVERLAPPED {
@@ -39,16 +39,18 @@ namespace SevOL {
         void StrToWsa(string* pstr, WSABUF* pwsa);
         WSABUF wsaReadBuf;
         WSABUF wsaWriteBuf;
-        WSABUF wsaRemBuf;
         SOCKET hSocket;
         string ReadBuf;
         string WriteBuf;
         string RemBuf;
         u_short ID;
-        u_short Dir;
+        enum eDir {OL_NOT_SELECTED=0, OL_RECV , OL_SEND
+        } ;
+        enum eDir Dir;
         DWORD NumberOfBytesSent;
         DWORD NumberOfBytesRecvd;
         DWORD flags;
+        TP_IO* pTPIo;
     };
 
     class SocketListenContext
