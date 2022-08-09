@@ -55,7 +55,7 @@ namespace SevOL {
 		//if (pTPIo)
 		//{
 		//	CloseThreadpoolIo(pTPIo);
-		//	pTPIo = NULL;
+		pTPIo = NULL;
 		//}
 		if (hSocket)
 		{

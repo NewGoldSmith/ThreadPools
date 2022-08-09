@@ -73,7 +73,6 @@ namespace SevOL {
 
 	VOID OnListenCompCB(PTP_CALLBACK_INSTANCE Instance, PVOID Context, PVOID Overlapped, ULONG IoResult, ULONG_PTR NumberOfBytesTransferred, PTP_IO Io)
 	{
-//		CloseThreadpoolIo(Io);
 		//リッスンソケット
 		SocketListenContext* pListenSocket = (SocketListenContext*)Context;
 		//アクセプトソケット
@@ -92,12 +91,21 @@ namespace SevOL {
 			return;
 		}
 
-		pListenSocket->ReadBuf.resize(NumberOfBytesTransferred);
-		if (pListenSocket->ReadBuf.size() == 0)
+		++gTotalConnected;
+
+		if (!NumberOfBytesTransferred)
 		{
 			CleanupSocket(pSocket);
+			//次のアクセプト
+			if (!PreAccept(pListenSocket))
+			{
+				cerr << "Err! OnListenCompCB. PreAccept.LINE:" << __LINE__ << "\r\n";
+				return;
+			}
 			return;
 		}
+
+		pListenSocket->ReadBuf.resize(NumberOfBytesTransferred);
 
 		//アクセプトIO完了ポート設定
 		
@@ -175,7 +183,7 @@ namespace SevOL {
 		//切断か確認。
 		if (!NumberOfBytesTransferred)
 		{
-			//			MyTRACE("Socket Closed\r\n");
+			MyTRACE("Socket Closed\r\n");
 			CloseThreadpoolIo(Io);
 			CleanupSocket(pSocket);
 			return;
@@ -191,6 +199,7 @@ namespace SevOL {
 			//WriteBufに中身があれば、エコー送信の開始
 			if (pSocket->WriteBuf.size())
 			{
+				pSocket->WriteBuf += "\r\n";
 				TP_WORK* pTPWork(NULL);
 				if (!(pTPWork = CreateThreadpoolWork(SendWorkCB, pSocket, &*pcbe)))
 				{
@@ -213,7 +222,7 @@ namespace SevOL {
 		}
 		else if (pSocket->Dir == SocketContext::eDir::OL_SEND)
 		{
-			MyTRACE(("Send:" + pSocket->WriteBuf).c_str());
+			MyTRACE(("Sent:" + pSocket->WriteBuf).c_str());
 
 			//受信完了ポートスタート。
 			TP_WORK* pTPWork(NULL);
@@ -230,39 +239,6 @@ namespace SevOL {
 		return;
 	}
 
-	VOID FirstAcceptWorkCB(PTP_CALLBACK_INSTANCE Instance, PVOID Context, PTP_WORK Work)
-	{
-		SocketContext* pSocket(NULL);
-		if (!(pSocket = (SocketContext*)Context))
-		{
-			cerr<<"pSocket is NULL. LINE:"<<__LINE__<<"\r\n";
-				return;
-		}
-		CloseThreadpoolWork(Work);
-		if (pSocket->ReadBuf.size() == 0)
-		{
-			CleanupSocket(pSocket);
-			return;
-		}
-		//返信
-		pSocket->RemBuf+=pSocket->ReadBuf;
-		pSocket->WriteBuf = SplitLastLineBreak(pSocket->RemBuf);
-		if (pSocket->WriteBuf.size())
-		{
-			pSocket->WriteBuf += "\r\n";
-			TP_WORK* pTPWork(NULL);
-			if (!(pTPWork = CreateThreadpoolWork(SendWorkCB, pSocket, &*pcbe)))
-			{
-				DWORD Err = GetLastError();
-				cerr << "Err! OnSocketNoticeCompCB CreateThreadpoolWork.Code:" << to_string(Err) << " LINE:" << __LINE__ << "\r\n";
-				CleanupSocket(pSocket);
-				return;
-			}
-			SubmitThreadpoolWork(pTPWork);
-		}
-		return VOID();
-	}
-
 	VOID SendWorkCB(PTP_CALLBACK_INSTANCE Instance, PVOID Context, PTP_WORK Work)
 	{
 		CloseThreadpoolWork(Work);
@@ -275,6 +251,7 @@ namespace SevOL {
 			DWORD Err(NULL);
 			if ((Err = WSAGetLastError()) != WSA_IO_PENDING) {
 				cerr << "Err! WSASend.Code:" << to_string(Err) << " LINE:" << __LINE__ << "\r\n";
+				CloseThreadpoolIo(pSocket->pTPIo);
 				CleanupSocket(pSocket);
 				return;
 			}
@@ -297,10 +274,10 @@ namespace SevOL {
 		if (!WSARecv(pSocket->hSocket, &pSocket->wsaReadBuf, 1, NULL, &pSocket->flags, pSocket, NULL))
 		{
 			DWORD Err = WSAGetLastError();
-			if (Err != WSA_IO_PENDING)
+			if (!(Err != WSA_IO_PENDING || Err!=0))
 			{
-				cerr << "Err! RecvWorkCB.Code:" << to_string(Err) << "\r\n";
-				CancelThreadpoolIo(pSocket->pTPIo);
+				cerr << "Err! RecvWorkCB.Code:" << to_string(Err) << " LINE:"<<__LINE__<<"\r\n";
+				CloseThreadpoolIo(pSocket->pTPIo);
 				CleanupSocket(pSocket);
 				return;
 			}
@@ -327,39 +304,8 @@ namespace SevOL {
 		{
 			ShowStatus();
 		}
+		IncDelCount();
 		//		PreAccept(gpListenContext);
-	}
-
-	VOID PreAcceptCB(PTP_CALLBACK_INSTANCE Instance, PVOID Context, PTP_WORK Work)
-	{
-		CloseThreadpoolWork(Work);
-
-		SocketListenContext* pListenSocket = (SocketListenContext*)Context;
-
-		//アクセプト用ソケット取り出し
-		SocketContext* pSocket = gSocketsPool.Pop();
-		//オープンソケット作成
-		if (!(pSocket->hSocket = WSASocket(AF_INET, SOCK_STREAM, IPPROTO_TCP, NULL, 0, WSA_FLAG_OVERLAPPED))) {
-			cerr << "Err WSASocket Code:" << to_string(WSAGetLastError()) << " Line:" << __LINE__ << "\r\n";
-			return;
-		}
-
-		//デバック用ID設定
-		pSocket->ID = gID++;
-
-		pSocket->ReadBuf.resize(BUFFER_SIZE, '\0');
-		//AcceptExの関数ポインタを取得し、実行。パラメーターはサンプルまんま。
-		if (!(*GetAcceptEx(pListenSocket))(pListenSocket->hSocket, pSocket->hSocket, pSocket->ReadBuf.data(), BUFFER_SIZE - ((sizeof(sockaddr_in) + 16) * 2), sizeof(sockaddr_in) + 16, sizeof(sockaddr_in) + 16, NULL, (OVERLAPPED*)pSocket))
-		{
-			DWORD err = GetLastError();
-			if (err != ERROR_IO_PENDING)
-			{
-				cerr << "AcceptEx return value error! Code:" + to_string(err) + " LINE:" + to_string(__LINE__) + "\r\n";
-				return;
-			}
-		}
-
-		return VOID();
 	}
 
 
@@ -516,7 +462,7 @@ namespace SevOL {
 		std::cout << "Total Connected: " << gTotalConnected << "\r" << std::endl;
 		std::cout << "Current Connected: " << gTotalConnected - gCDel << "\r" << std::endl;
 		std::cout << "Max Connecting: " << SevOL::gMaxConnecting << "\r" << std::endl;
-		std::cout << "Max Accepted/Sec: " << SevOL::gAcceptedPerSec << "\r" << std::endl;
+		std::cout << "Max Accepted/Sec: " << SevOL::gAcceptedPerSec-1 << "\r" << std::endl;
 	}
 
 	std::string SplitLastLineBreak(std::string& str)
@@ -575,6 +521,14 @@ namespace SevOL {
 		return pFiletime;
 	}
 
+	void SevOL::IncDelCount()
+	{
+		if ((gTotalConnected - ++gCDel) == 0)
+		{
+			ShowStatus();
+		}
+
+	}
 	//void SerializedSocketDebugPrint(SevOL::SocketContext* pSocket)
 	//{
 	//	PTP_WORK ptpwork(NULL);
