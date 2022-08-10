@@ -10,7 +10,7 @@ namespace ThreadPoolCliantR {
 	std::atomic_uint gMaxConnect{};
 	std::atomic_uint gCDel{};
 	std::atomic_uint gID{};
-	std::atomic<ULONGLONG> gtMinRepTime{ LLONG_MAX };
+	std::atomic<ULONGLONG> gtMinRepTime{ ULLONG_MAX };
 	std::atomic<ULONGLONG> gtMaxRepTime{};
 	SocketContext gSockets[ELM_SIZE];
 	RingBuf<SocketContext> gSocketsPool(gSockets, ELM_SIZE);
@@ -110,14 +110,10 @@ namespace ThreadPoolCliantR {
 				u_int uiCount=FindAndConfirmCountDownNumber(pSocket->DispString);
 				//見つけたカウントが範囲内か確認。
 				if (0 <= uiCount && uiCount <= N_COUNTDOWNS) {
-					//pSocket->tRecv[N_COUNTDOWNS - uiCount] = std::time(nullptr);
 					GetSystemTimeAsFileTime(&pSocket->tRecv[N_COUNTDOWNS - uiCount]);
-					//::GetLocalTime(&pSocket->tRecv[N_COUNTDOWNS - uiCount]);
 					if (uiCount == 0)
 					{
 						CloseThreadpoolWait(Wait);
-
-						//レスポンスデータを計算
 						gtMaxRepTime.store(__max(gtMaxRepTime.load(), pSocket->GetMaxResponce()));
 						gtMinRepTime.store(__min(gtMinRepTime.load(), pSocket->GetMinResponce()));
 
@@ -133,6 +129,7 @@ namespace ThreadPoolCliantR {
 							std::cout << "\r\nstatus\r\n";
 							ShowStatus();
 						}
+
 						return;
 					}
 				}
@@ -200,12 +197,9 @@ namespace ThreadPoolCliantR {
 		std::cout << "Total Connected:" << ThreadPoolCliantR::gID << "\r\n";
 		std::cout << "Current Connected:" << ThreadPoolCliantR::gID - ThreadPoolCliantR::gCDel << "\r\n";
 		std::cout << "Max Connecting:" << ThreadPoolCliantR::gMaxConnect << "\r\n";
-//		std::time_t t = gtMinRepTime;
 		std::cout << "Min Responce msec:" << std::to_string(gtMinRepTime
 		) << "\r\n";
-//		t = gtMaxRepTime;
-		std::cout << "Max Responce msec:" << std::to_string(gtMaxRepTime
-		) << "\r\n";
+		std::cout << "Max Responce msec:" << gtMaxRepTime.load() << "\r\n";
 	}
 
 	void ClearStatus()
@@ -231,8 +225,6 @@ namespace ThreadPoolCliantR {
 		}
 		//レスポンス測定用。
 		GetSystemTimeAsFileTime(&pSocket->tSend[N_COUNTDOWNS - pSocket->CountDown]);
-		//pSocket->tSend[N_COUNTDOWNS - pSocket->CountDown] = std::time(nullptr);
-//		::GetLocalTime(&pSocket->tSend[N_COUNTDOWNS - pSocket->CountDown]);
 		PTP_TIMER pTPTimer(0);
 		if (!(pTPTimer = CreateThreadpoolTimer(OneSecTimerCB, pSocket, &*pcbe)))
 		{
@@ -269,9 +261,7 @@ namespace ThreadPoolCliantR {
 			}
 
 			//レスポンス測定用。
-			//pSocket->tSend[N_COUNTDOWNS - pSocket->CountDown] = std::time(nullptr);
 			GetSystemTimeAsFileTime(&pSocket->tSend[N_COUNTDOWNS - pSocket->CountDown]);
-			//::GetLocalTime(&pSocket->tSend[N_COUNTDOWNS - pSocket->CountDown]);
 
 			SetThreadpoolTimer(pTPTimer, &*p1000msecFT, 0, 0);
 		}

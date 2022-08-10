@@ -22,7 +22,7 @@ namespace ThreadPoolCliantR {
 
 	constexpr auto ELM_SIZE = 0x4000;
 	constexpr auto NUM_THREAD = 3;
-	constexpr auto NUM_CONNECT = 5;
+	constexpr auto NUM_CONNECT =5000;
 	//ï\é¶ó}êß
 //#define DISPLAY_SUPPRESSION
 	class SocketContext;
@@ -67,6 +67,7 @@ namespace ThreadPoolCliantR {
 	bool MakeAndSendSocketMessage(SocketContext* pSocket);
 	u_int FindAndConfirmCountDownNumber(const std::string& str);
 
+//#define MY_DEBUG
 #ifdef MY_DEBUG
 #define    MyTRACE(lpsz) OutputDebugStringA(lpsz);
 #else

@@ -5,7 +5,7 @@
 //Cliant side
 #include "SocketContextCliR.h"
 
-
+using namespace std;
 
 namespace ThreadPoolCliantR {
 
@@ -65,19 +65,38 @@ namespace ThreadPoolCliantR {
 		{
 			ULONGLONG t64Send=(((ULONGLONG)tSend[i].dwHighDateTime) << 32) + tSend[i].dwLowDateTime;
 			ULONGLONG t64Recv= (((ULONGLONG)tRecv[i].dwHighDateTime) << 32) + tRecv[i].dwLowDateTime;
-			tMax = std::max<ULONGLONG>((t64Recv-t64Send)/ 10000.0,  tMax);
+
+			ULONGLONG tmpMax(0);
+			if (t64Send > t64Recv)
+			{
+				int i=0;
+			}
+			else {
+				tmpMax = (t64Recv - t64Send) / 10000.0;
+			}
+			tMax = max(tmpMax, tMax);
+			MyTRACE(("Max:" + std::to_string(tMax) + "\r\n").c_str());
 		}
 		return tMax;
 	}
 
 	ULONGLONG SocketContext::GetMinResponce()
 	{
-		ULONGLONG tMin(LLONG_MAX);
+		ULONGLONG tMin(ULLONG_MAX);
 		for (int i(0); i < N_COUNTDOWNS; ++i)
 		{
 			ULONGLONG t64Send = (((ULONGLONG)tSend[i].dwHighDateTime) << 32) + tSend[i].dwLowDateTime;
 			ULONGLONG t64Recv = (((ULONGLONG)tRecv[i].dwHighDateTime) << 32) + tRecv[i].dwLowDateTime;
-			tMin = std::min<ULONGLONG>((t64Recv - t64Send) / 10000.0, tMin);
+
+			ULONGLONG tmpMin(ULLONG_MAX);
+			if (t64Send > t64Recv)
+			{
+				;
+			}
+			else {
+				tmpMin = (t64Recv - t64Send) / 10000.0;
+			}
+			tMin = min(tmpMin, tMin);
 		}
 		return tMin;
 	}
