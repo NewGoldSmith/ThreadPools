@@ -21,9 +21,10 @@
 namespace ThreadPoolCliantR {
 
 	constexpr auto ELM_SIZE = 0x4000;
-	constexpr auto NUM_THREAD = 1;
-	constexpr auto NUM_CONNECT = 1;
-
+	constexpr auto NUM_THREAD = 3;
+	constexpr auto NUM_CONNECT = 5;
+	//ï\é¶ó}êß
+//#define DISPLAY_SUPPRESSION
 	class SocketContext;
 
 	VOID CALLBACK OnEvSocketCB(
@@ -64,7 +65,7 @@ namespace ThreadPoolCliantR {
 	void StartTimer(SocketContext* pSocket);
 	FILETIME* Make1000mSecFileTime(FILETIME* pfiletime);
 	bool MakeAndSendSocketMessage(SocketContext* pSocket);
-	u_int FindCountDown(const std::string& str);
+	u_int FindAndConfirmCountDownNumber(const std::string& str);
 
 #ifdef MY_DEBUG
 #define    MyTRACE(lpsz) OutputDebugStringA(lpsz);

@@ -17,5 +17,5 @@
 
 
 
-constexpr auto MAX_TASKS = 5;
-constexpr auto MIN_TASKS = 2;
+constexpr auto MAX_TASKS = 3;
+constexpr auto MIN_TASKS = 1;

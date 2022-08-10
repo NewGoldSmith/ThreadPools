@@ -20,7 +20,7 @@
 namespace ThreadPoolCliantR {
 
 	constexpr auto BUFFER_SIZE = 1024;
-	constexpr auto N_COUNTDOWNS = 3;
+	constexpr auto N_COUNTDOWNS = 5;
 
 	class SocketContext {
 	public:
@@ -29,8 +29,8 @@ namespace ThreadPoolCliantR {
 		SocketContext(SocketContext& Socket) = delete;
 		~SocketContext();
 		void ReInitialize();
-		std::time_t GetMaxResponce();
-		std::time_t GetMinResponce();
+		ULONGLONG GetMaxResponce();
+		ULONGLONG GetMinResponce();
 		SOCKET hSocket;
 		u_short ID;
 		int CountDown;
@@ -39,8 +39,8 @@ namespace ThreadPoolCliantR {
 		std::string RemString;
 		std::string DispString;
 		WSAEVENT hEvent;
-		SYSTEMTIME tSend[N_COUNTDOWNS + 1];
-		SYSTEMTIME tRecv[N_COUNTDOWNS + 1];
+		FILETIME  tSend[N_COUNTDOWNS + 1];
+		FILETIME  tRecv[N_COUNTDOWNS + 1];
 	};
 
 }

@@ -117,7 +117,11 @@ int main()
 				break;
 			}
 			else if (strin == "status") {
-				SevOL::ShowStatus();
+				ShowStatus();
+			}
+			else if (strin == "clearstatus")
+			{
+				ClearStatus();
 			}
 		}
 		EndListen(gpListenContext);

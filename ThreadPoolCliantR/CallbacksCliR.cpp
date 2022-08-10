@@ -10,8 +10,8 @@ namespace ThreadPoolCliantR {
 	std::atomic_uint gMaxConnect{};
 	std::atomic_uint gCDel{};
 	std::atomic_uint gID{};
-	std::atomic<std::time_t> gtMinRepTime{ LLONG_MAX };
-	std::atomic<std::time_t> gtMaxRepTime{};
+	std::atomic<ULONGLONG> gtMinRepTime{ LLONG_MAX };
+	std::atomic<ULONGLONG> gtMaxRepTime{};
 	SocketContext gSockets[ELM_SIZE];
 	RingBuf<SocketContext> gSocketsPool(gSockets, ELM_SIZE);
 	const std::unique_ptr
@@ -96,6 +96,7 @@ namespace ThreadPoolCliantR {
 				pSocket->DispString = SplitLastLineBreak(pSocket->RemString);
 				pSocket->DispString += "\r\n";
 				PTP_WORK pTPWork(NULL);
+#ifndef DISPLAY_SUPPRESSION
 				//受信したデータを表示する。
 				if (!(pTPWork = CreateThreadpoolWork(SerializedDisplayCB, pSocket, &*pcbe)))
 				{
@@ -104,12 +105,14 @@ namespace ThreadPoolCliantR {
 				else {
 					SubmitThreadpoolWork(pTPWork);
 				}
-
+#endif
 				//レスポンス測定用。
-				u_int uiCount=FindCountDown(pSocket->DispString);
+				u_int uiCount=FindAndConfirmCountDownNumber(pSocket->DispString);
 				//見つけたカウントが範囲内か確認。
 				if (0 <= uiCount && uiCount <= N_COUNTDOWNS) {
-					::GetLocalTime(&pSocket->tRecv[N_COUNTDOWNS - uiCount]);
+					//pSocket->tRecv[N_COUNTDOWNS - uiCount] = std::time(nullptr);
+					GetSystemTimeAsFileTime(&pSocket->tRecv[N_COUNTDOWNS - uiCount]);
+					//::GetLocalTime(&pSocket->tRecv[N_COUNTDOWNS - uiCount]);
 					if (uiCount == 0)
 					{
 						CloseThreadpoolWait(Wait);
@@ -197,10 +200,10 @@ namespace ThreadPoolCliantR {
 		std::cout << "Total Connected:" << ThreadPoolCliantR::gID << "\r\n";
 		std::cout << "Current Connected:" << ThreadPoolCliantR::gID - ThreadPoolCliantR::gCDel << "\r\n";
 		std::cout << "Max Connecting:" << ThreadPoolCliantR::gMaxConnect << "\r\n";
-		std::time_t t = gtMinRepTime;
+//		std::time_t t = gtMinRepTime;
 		std::cout << "Min Responce msec:" << std::to_string(gtMinRepTime
 		) << "\r\n";
-		t = gtMaxRepTime;
+//		t = gtMaxRepTime;
 		std::cout << "Max Responce msec:" << std::to_string(gtMaxRepTime
 		) << "\r\n";
 	}
@@ -227,7 +230,9 @@ namespace ThreadPoolCliantR {
 			return;
 		}
 		//レスポンス測定用。
-		::GetLocalTime(&pSocket->tSend[N_COUNTDOWNS - pSocket->CountDown]);
+		GetSystemTimeAsFileTime(&pSocket->tSend[N_COUNTDOWNS - pSocket->CountDown]);
+		//pSocket->tSend[N_COUNTDOWNS - pSocket->CountDown] = std::time(nullptr);
+//		::GetLocalTime(&pSocket->tSend[N_COUNTDOWNS - pSocket->CountDown]);
 		PTP_TIMER pTPTimer(0);
 		if (!(pTPTimer = CreateThreadpoolTimer(OneSecTimerCB, pSocket, &*pcbe)))
 		{
@@ -264,7 +269,9 @@ namespace ThreadPoolCliantR {
 			}
 
 			//レスポンス測定用。
-			::GetLocalTime(&pSocket->tSend[N_COUNTDOWNS - pSocket->CountDown]);
+			//pSocket->tSend[N_COUNTDOWNS - pSocket->CountDown] = std::time(nullptr);
+			GetSystemTimeAsFileTime(&pSocket->tSend[N_COUNTDOWNS - pSocket->CountDown]);
+			//::GetLocalTime(&pSocket->tSend[N_COUNTDOWNS - pSocket->CountDown]);
 
 			SetThreadpoolTimer(pTPTimer, &*p1000msecFT, 0, 0);
 		}
@@ -433,7 +440,7 @@ namespace ThreadPoolCliantR {
 		return true;
 	}
 
-	u_int FindCountDown(const std::string& str)
+	u_int FindAndConfirmCountDownNumber(const std::string& str)
 	{
 		std::string s(str);
 		size_t it2=s.rfind("\r\n");
@@ -444,7 +451,7 @@ namespace ThreadPoolCliantR {
 			uc=std::stoi(substr);
 		}
 		catch (const std::invalid_argument& e) {
-			std::cout << e.what() << std::endl;
+			std::cerr << "Err! FindAndConfirmCountDownNumber. "<<e.what() << " File:" << __FILE__ << " LINE:" << __LINE__ << "\r\n";
 			std::abort();
 		}
 		return uc;

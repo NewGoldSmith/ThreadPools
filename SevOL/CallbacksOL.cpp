@@ -90,8 +90,8 @@ namespace SevOL {
 			cout << "End Listen\r\n";
 			return;
 		}
-
 		++gTotalConnected;
+		gMaxConnecting.store(__max(gMaxConnecting.load(), gTotalConnected.load()));
 
 		if (!NumberOfBytesTransferred)
 		{
@@ -285,14 +285,14 @@ namespace SevOL {
 	}
 	VOID MeasureConnectedPerSecCB(PTP_CALLBACK_INSTANCE Instance, PVOID Context, PTP_TIMER Timer)
 	{
-		static u_int oldtime(0);
-		u_int now(gID);
-		if (now > 1)
+		static u_int oldNum(0);
+		u_int nowNum(gTotalConnected);
+		if (nowNum >= 1)
 		{
 			std::atomic_uint* pgConnectPerSec = (std::atomic_uint*)Context;
-			*pgConnectPerSec = __max(pgConnectPerSec->load(), now - oldtime);
+			*pgConnectPerSec = __max(pgConnectPerSec->load(), nowNum - oldNum);
 		}
-		oldtime = now;
+		oldNum=nowNum;
 	}
 
 	void CleanupSocket(SocketContext* pSocket)
@@ -304,7 +304,7 @@ namespace SevOL {
 		{
 			ShowStatus();
 		}
-		IncDelCount();
+//		IncDelCount();
 		//		PreAccept(gpListenContext);
 	}
 
@@ -449,20 +449,23 @@ namespace SevOL {
 	{
 		WaitForThreadpoolTimerCallbacks(gpTPTimer, FALSE);
 		CloseThreadpoolTimer(gpTPTimer);
-
-//		CancelIoEx((HANDLE)pListen->hSocket, NULL);
-		//if (pListen->pTPListen)
-		//{
-		//	pListen->pTPListen = NULL;
-		//}
 	}
 
 	void ShowStatus()
 	{
-		std::cout << "Total Connected: " << gTotalConnected << "\r" << std::endl;
-		std::cout << "Current Connected: " << gTotalConnected - gCDel << "\r" << std::endl;
-		std::cout << "Max Connecting: " << SevOL::gMaxConnecting << "\r" << std::endl;
-		std::cout << "Max Accepted/Sec: " << SevOL::gAcceptedPerSec-1 << "\r" << std::endl;
+		std::cout << "Total Connected: " << gTotalConnected << "\r\n";
+		std::cout << "Current Connecting: " << gTotalConnected - gCDel <<"\r\n";
+		std::cout << "Max Connected: " << gMaxConnecting << "\r\n";
+		std::cout << "Max Accepted/Sec: " << gAcceptedPerSec << "\r\n\r\n";
+	}
+
+	void ClearStatus()
+	{
+		gCDel = 0;
+		gTotalConnected = 0;
+		gMaxConnecting = 0;
+		gAcceptedPerSec = 0;
+		ShowStatus();
 	}
 
 	std::string SplitLastLineBreak(std::string& str)
@@ -520,25 +523,5 @@ namespace SevOL {
 		pFiletime->dwLowDateTime = ulDueTime.LowPart;
 		return pFiletime;
 	}
-
-	void SevOL::IncDelCount()
-	{
-		if ((gTotalConnected - ++gCDel) == 0)
-		{
-			ShowStatus();
-		}
-
-	}
-	//void SerializedSocketDebugPrint(SevOL::SocketContext* pSocket)
-	//{
-	//	PTP_WORK ptpwork(NULL);
-	//	if (!(ptpwork = CreateThreadpoolWork(SerializedSocketDebugPrintCB
-	//		, pSocket, &*pcbe)))
-	//	{
-	//		std::cerr << "Err" << __FUNCTION__ << __LINE__ << std::endl;
-	//		return;
-	//	}
-	//	SubmitThreadpoolWork(ptpwork);
-	//}
 
 }

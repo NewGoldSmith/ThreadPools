@@ -13,32 +13,28 @@ namespace SevOL {
 	SocketContext::SocketContext()
 		:
 		wsaReadBuf{}
-		,wsaWriteBuf{}
-		,hSocket(NULL)
-		,ReadBuf(BUFFER_SIZE,'\0')
-		,WriteBuf(BUFFER_SIZE, '\0')
-		,RemBuf(BUFFER_SIZE, '\0')
-		,ID(0)
-		,Dir(eDir::OL_NOT_SELECTED)
-		,NumberOfBytesSent(0)
+		, wsaWriteBuf{}
+		, hSocket(NULL)
+		, ReadBuf(BUFFER_SIZE, '\0')
+		, WriteBuf(BUFFER_SIZE, '\0')
+		, RemBuf(BUFFER_SIZE, '\0')
+		, ID(0)
+		, Dir(eDir::OL_NOT_SELECTED)
+		, NumberOfBytesSent(0)
 		, NumberOfBytesRecvd(0)
-		,flags(0)
-		,pTPIo(0)
+		, flags(0)
+		, pTPIo(0)
 	{
 		wsaReadBuf.buf = ReadBuf.data();
 		wsaReadBuf.len = ReadBuf.length();
 		wsaWriteBuf.buf = WriteBuf.data();
 		wsaWriteBuf.len = WriteBuf.length();
 		RemBuf.clear();
-		hEvent=WSACreateEvent();
+		hEvent = WSACreateEvent();
 	};
 
 	SocketContext::~SocketContext()
 	{
-		//if (pTPIo)
-		//{
-		//	CloseThreadpoolIo(pTPIo);
-		//}
 		if (hSocket)
 		{
 			shutdown(hSocket, SD_SEND);
@@ -52,11 +48,7 @@ namespace SevOL {
 	}
 	void SocketContext::ReInitialize()
 	{
-		//if (pTPIo)
-		//{
-		//	CloseThreadpoolIo(pTPIo);
 		pTPIo = NULL;
-		//}
 		if (hSocket)
 		{
 			shutdown(hSocket, SD_SEND);
@@ -102,30 +94,19 @@ namespace SevOL {
 
 	SocketListenContext::SocketListenContext()
 		:SocketContext()
-		,pTPListen(NULL)
+		, pTPListen(NULL)
 	{
 		;
 	}
 
 	SocketListenContext::~SocketListenContext()
 	{
-		if (pTPListen)
-		{
-//			CancelThreadpoolIo(pTPListen);
-//			WaitForThreadpoolIoCallbacks(pTPListen, TRUE);
-//			CloseThreadpoolIo(pTPListen);
-			pTPListen = NULL;
-		}
-//		SocketContext::~SocketContext();
+		pTPListen == NULL;
 	}
 	void SocketListenContext::ReInitialize()
 	{
 		SocketContext::ReInitialize();
-		//if (pTPListen)
-		//{
-		//	CloseThreadpoolIo(pTPListen);
-		//	pTPListen = NULL;
-		//}
+		pTPListen = NULL;
 	}
 
 }

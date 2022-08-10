@@ -68,17 +68,13 @@ namespace SevOL {
     LPFN_GETACCEPTEXSOCKADDRS GetGetAcceptExSockaddrs(SocketContext* pListenSocket);
     void EndListen(SocketListenContext*pListen);
     void ShowStatus();
+    void ClearStatus();
     std::string SplitLastLineBreak(std::string &str);
-    // bool DoSend(SocketContext* pAcceptSocket);
-    //bool DoRecv(SocketContext* pAcceptSocket);
     bool PreAccept(SocketListenContext*pListenSocket);
     FILETIME* Make1000mSecFileTime(FILETIME *pfiletime);
-    void IncDelCount();
 #ifdef _DEBUG
-//#define    SockTRACE(pAcceptSocket) SerializedSocketDebugPrint( pAcceptSocket)
 #define    MyTRACE(lpsz) OutputDebugStringA(lpsz);
 #else
-#define SockTRACE __noop
 #define MyTRACE __noop
 #endif
 }

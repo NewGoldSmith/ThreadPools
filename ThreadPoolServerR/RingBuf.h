@@ -3,7 +3,7 @@
 //https ://opensource.org/licenses/mit-license.php
 #pragma once
 #include <exception>
-//#define NO_CONFIRM_RINGBUF
+#define NO_CONFIRM_RINGBUF
 template <class T>class RingBuf
 {
 public:

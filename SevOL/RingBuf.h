@@ -3,7 +3,7 @@
 //https ://opensource.org/licenses/mit-license.php
 #pragma once
 #include <exception>
-//#define NO_CONFIRM_RINGBUF
+#define NO_CONFIRM_RINGBUF
 template <class T>class RingBuf
 {
 public:
@@ -45,8 +45,8 @@ inline	T* Pop()
 			std::exit(1);
 		}
 #endif // !NO_CONFIRM_RINGBUF
-		T** ppT = &ppBuf[end & mask];
-		++end;
+		T** ppT = &ppBuf[end++ & mask];
+		//++end;
 		return *ppT;
 	}
 
@@ -66,8 +66,8 @@ inline	void Push(T* pT)
 			std::exit(1);
 		}
 #endif // !NO_CONFIRM_RINGBUF
-		++front;
-		ppBuf[front & mask] = pT;
+		//++front;
+		ppBuf[++front & mask] = pT;
 	}
 
 protected:

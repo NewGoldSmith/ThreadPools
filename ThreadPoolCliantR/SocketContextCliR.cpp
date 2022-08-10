@@ -58,38 +58,26 @@ namespace ThreadPoolCliantR {
 		RemString.clear();
 	}
 
-	std::time_t SocketContext::GetMaxResponce()
+	ULONGLONG SocketContext::GetMaxResponce()
 	{
-		std::time_t tMax(0);
+		ULONGLONG  tMax(0);
 		for (int i(0); i < N_COUNTDOWNS; ++i)
 		{
-			FILETIME ftimeOld;
-			FILETIME ftimeNew;
-			SystemTimeToFileTime(&tSend[i], &ftimeOld);
-			SystemTimeToFileTime(&tRecv[i], &ftimeNew);
-
-			std::time_t* nTimeOld = (std::time_t*)&ftimeOld;
-			std::time_t* nTimeNew = (std::time_t*)&ftimeNew;
-
-			tMax = __max((*nTimeNew - *nTimeOld) / 10000/* / 1000*/, tMax);
+			ULONGLONG t64Send=(((ULONGLONG)tSend[i].dwHighDateTime) << 32) + tSend[i].dwLowDateTime;
+			ULONGLONG t64Recv= (((ULONGLONG)tRecv[i].dwHighDateTime) << 32) + tRecv[i].dwLowDateTime;
+			tMax = std::max<ULONGLONG>((t64Recv-t64Send)/ 10000.0,  tMax);
 		}
 		return tMax;
 	}
 
-	std::time_t SocketContext::GetMinResponce()
+	ULONGLONG SocketContext::GetMinResponce()
 	{
-		std::time_t tMin(LLONG_MAX);
+		ULONGLONG tMin(LLONG_MAX);
 		for (int i(0); i < N_COUNTDOWNS; ++i)
 		{
-			FILETIME ftimeOld;
-			FILETIME ftimeNew;
-			SystemTimeToFileTime(&tSend[i], &ftimeOld);
-			SystemTimeToFileTime(&tRecv[i], &ftimeNew);
-
-			std::time_t* nTimeOld = (std::time_t*)&ftimeOld;
-			std::time_t* nTimeNew = (std::time_t*)&ftimeNew;
-
-			tMin = __min((*nTimeNew - *nTimeOld) / 10000/* / 1000*/, tMin);
+			ULONGLONG t64Send = (((ULONGLONG)tSend[i].dwHighDateTime) << 32) + tSend[i].dwLowDateTime;
+			ULONGLONG t64Recv = (((ULONGLONG)tRecv[i].dwHighDateTime) << 32) + tRecv[i].dwLowDateTime;
+			tMin = std::min<ULONGLONG>((t64Recv - t64Send) / 10000.0, tMin);
 		}
 		return tMin;
 	}

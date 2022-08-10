@@ -20,8 +20,6 @@
 
 namespace SevOL {
     constexpr auto BUFFER_SIZE = 1024;
-    //constexpr auto OL_RECV_CYCLE = 1;
-    //constexpr auto OL_SEND_CYCLE = 2;
 
     using namespace std;
     struct DirOVERLAPPED :public WSAOVERLAPPED {

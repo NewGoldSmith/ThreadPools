@@ -16,7 +16,7 @@
 
 namespace ThreadPoolCliantR {
 
-	constexpr auto MAX_TASKS = 6;
+	constexpr auto MAX_TASKS = 3;
 	constexpr auto MIN_TASKS = 1;
 
 }
