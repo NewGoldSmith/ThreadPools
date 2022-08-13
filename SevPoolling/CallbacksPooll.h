@@ -14,13 +14,25 @@
 #include <semaphore>
 #include <exception>
 #include <algorithm>
-#include "MainOL.h"
-#include "SocketContextOL.h"
+#include "MainPooll.h"
+#include "ScoketContextPooll.h"
 //#include <sal.h>
 #include "RingBuf.h"
 
-namespace SevOL {
+namespace SevPooll {
     constexpr auto ELM_SIZE = 0x4000;   //0x4000;/*16384*/
+
+    VOID CALLBACK TryAcceptTimerCB(
+        PTP_CALLBACK_INSTANCE Instance,
+        PVOID                 Context,
+        PTP_TIMER             Timer
+    );
+
+    VOID CALLBACK RecvAndSendTimerCB(
+        PTP_CALLBACK_INSTANCE Instance,
+        PVOID                 Context,
+        PTP_TIMER             Timer
+    );
 
     VOID CALLBACK OnListenCompCB(
         PTP_CALLBACK_INSTANCE Instance,
@@ -62,14 +74,16 @@ namespace SevOL {
 
     void CleanupSocket(SocketContext* pSocket);
     int StartListen(SocketListenContext*);
-    LPFN_ACCEPTEX GetAcceptEx(SocketListenContext*pAcceptSocket);
+    LPFN_ACCEPTEX GetAcceptEx(SocketListenContext* pAcceptSocket);
     LPFN_GETACCEPTEXSOCKADDRS GetGetAcceptExSockaddrs(SocketContext* pListenSocket);
-    void EndListen(SocketListenContext*pListen);
+    void EndListen(SocketListenContext* pListen);
     void ShowStatus();
     void ClearStatus();
-    std::string SplitLastLineBreak(std::string &str);
-    bool PreAccept(SocketListenContext*pListenSocket);
-    FILETIME* Make1000mSecFileTime(FILETIME *pfiletime);
+    std::string SplitLastLineBreak(std::string& str);
+    bool PreAccept(SocketListenContext* pListenSocket);
+    bool TryAccept(SocketListenContext* pListenSocket);
+    FILETIME* Make1000mSecFileTime(FILETIME* pfiletime);
+    FILETIME* Make100mSecFileTime(FILETIME* pfiletime);
 #ifdef _DEBUG
 #define    MyTRACE(lpsz) OutputDebugStringA(lpsz);
 #else

@@ -3,13 +3,12 @@
 //https ://opensource.org/licenses/mit-license.php
 
 //Server side
-#include "CallbacksOL.h"
+#include "CallbacksPooll.h"
 
 using namespace std;
-using namespace SevOL;
-namespace SevOL {
+using namespace SevPooll;
+namespace SevPooll {
 
-	extern SocketListenContext* gpListenContext;
 	std::atomic_uint gAcceptedPerSec(0);
 	std::atomic_uint gID(0);
 	std::atomic_uint gTotalConnected(0);
@@ -17,6 +16,7 @@ namespace SevOL {
 	std::atomic_uint gMaxConnecting(0);
 	SocketContext gSockets[ELM_SIZE];
 	PTP_TIMER gpTPTimer(NULL);
+	u_int fEnd(0);
 
 	binary_semaphore gvPoollock(1);
 	binary_semaphore gvConnectedlock(1);
@@ -70,6 +70,59 @@ namespace SevOL {
 		}
 	};
 
+	const std::unique_ptr
+		< FILETIME
+		, void (*)(FILETIME*)
+		> gp100msecFT
+	{ []()
+		{
+			const auto gp100msecFT = new FILETIME;
+			Make100mSecFileTime(gp100msecFT);
+			return gp100msecFT;
+		}()
+	,[](_Inout_ FILETIME* gp100msecFT)
+		{
+				delete gp100msecFT;
+		}
+	};
+
+
+	VOID TryAcceptTimerCB(PTP_CALLBACK_INSTANCE Instance, PVOID Context, PTP_TIMER Timer)
+	{
+		SocketListenContext* pListen = (SocketListenContext*)Context;
+		//エンドフラグが立っていたら終了。
+		if (fEnd)
+		{
+			return;
+		}
+		SOCKET hSocket(NULL);
+		if ((hSocket = accept(pListen->hSocket, NULL, NULL)) == INVALID_SOCKET)
+		{
+			DWORD Err = WSAGetLastError();
+			if (Err != WSAEWOULDBLOCK)
+			{
+				cerr << "Err! TryAcceptTimerCB. accept. Code:" << Err << " LINE:" << __LINE__ << "\r\n";
+				return;
+			}
+		}
+		else {
+			SocketContext*pSocket=gSocketsPool.Pop();
+			pSocket->hSocket = hSocket;
+			TP_TIMER* pTPTimer(NULL);
+			if (!(pTPTimer = CreateThreadpoolTimer(RecvAndSendTimerCB, pSocket, &*pcbe)))
+			{
+				DWORD Err = GetLastError();
+				cerr << "Err! TryAcceptTimerCB. CreateThreadpoolTimer. Code:" << Err << " LINE:" << __LINE__ << "\r\n";
+				CleanupSocket(pSocket);
+			}
+		}
+		return VOID();
+	}
+
+	VOID RecvAndSendTimerCB(PTP_CALLBACK_INSTANCE Instance, PVOID Context, PTP_TIMER Timer)
+	{
+		return VOID();
+	}
 
 	VOID OnListenCompCB(PTP_CALLBACK_INSTANCE Instance, PVOID Context, PVOID Overlapped, ULONG IoResult, ULONG_PTR NumberOfBytesTransferred, PTP_IO Io)
 	{
@@ -108,7 +161,7 @@ namespace SevOL {
 		pListenSocket->ReadBuf.resize(NumberOfBytesTransferred);
 
 		//アクセプトIO完了ポート設定
-		
+
 		if (!(pSocket->pTPIo = CreateThreadpoolIo((HANDLE)pSocket->hSocket, OnSocketNoticeCompCB, pSocket, &*pcbe)))
 		{
 			DWORD Err = GetLastError();
@@ -117,7 +170,7 @@ namespace SevOL {
 			return;
 		}
 		StartThreadpoolIo(pSocket->pTPIo);
-		
+
 
 		//読み取りデータをアクセプトソケットに移す。
 		pSocket->RemBuf = pListenSocket->ReadBuf;
@@ -189,7 +242,7 @@ namespace SevOL {
 			return;
 		}
 
-			//レシーブの完了か確認。
+		//レシーブの完了か確認。
 		if (pSocket->Dir == SocketContext::eDir::OL_RECV)
 		{
 			pSocket->RemBuf += {pSocket->wsaReadBuf.buf, NumberOfBytesTransferred};
@@ -208,7 +261,7 @@ namespace SevOL {
 				}
 				SubmitThreadpoolWork(pTPWork);
 			}
-			else{
+			else {
 				//WriteBufに中身がない場合送信はしない。受信完了ポートスタート。
 				TP_WORK* pTPWork(NULL);
 				if (!(pTPWork = CreateThreadpoolWork(RecvWorkCB, pSocket, &*pcbe)))
@@ -274,9 +327,9 @@ namespace SevOL {
 		if (!WSARecv(pSocket->hSocket, &pSocket->wsaReadBuf, 1, NULL, &pSocket->flags, pSocket, NULL))
 		{
 			DWORD Err = WSAGetLastError();
-			if (!(Err != WSA_IO_PENDING || Err!=0))
+			if (!(Err != WSA_IO_PENDING || Err != 0))
 			{
-				cerr << "Err! RecvWorkCB.Code:" << to_string(Err) << " LINE:"<<__LINE__<<"\r\n";
+				cerr << "Err! RecvWorkCB.Code:" << to_string(Err) << " LINE:" << __LINE__ << "\r\n";
 				CloseThreadpoolIo(pSocket->pTPIo);
 				CleanupSocket(pSocket);
 				return;
@@ -292,7 +345,7 @@ namespace SevOL {
 			std::atomic_uint* pgConnectPerSec = (std::atomic_uint*)Context;
 			*pgConnectPerSec = __max(pgConnectPerSec->load(), nowNum - oldNum);
 		}
-		oldNum=nowNum;
+		oldNum = nowNum;
 	}
 
 	void CleanupSocket(SocketContext* pSocket)
@@ -304,8 +357,8 @@ namespace SevOL {
 		{
 			ShowStatus();
 		}
-//		IncDelCount();
-		//		PreAccept(gpListenContext);
+		//		IncDelCount();
+				//		PreAccept(gpListenContext);
 	}
 
 
@@ -317,7 +370,7 @@ namespace SevOL {
 
 		//ソケット作成
 		WSAPROTOCOL_INFOA prot_info{};
-		pListenContext->hSocket = WSASocket(AF_INET, SOCK_STREAM, IPPROTO_TCP, NULL, 0, WSA_FLAG_OVERLAPPED);
+		pListenContext->hSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
 		if (!pListenContext->hSocket)
 		{
 			return S_FALSE;
@@ -331,6 +384,11 @@ namespace SevOL {
 			std::cerr << "setsockopt Error! Line:" << __LINE__ << "\r\n";
 		}
 
+		//ノンブロッキングモードに変更
+		u_long flag=1;
+		ioctlsocket(pListenContext->hSocket, FIONBIO, &flag);
+
+		//
 		//ホストバインド設定
 		CHAR strHostAddr[] = "127.0.0.2";
 		u_short usHostPort = 50000;
@@ -364,7 +422,6 @@ namespace SevOL {
 			return false;
 		}
 
-
 		// Accepted/sec測定用タイマーコールバック設定
 		if (!(gpTPTimer = CreateThreadpoolTimer(MeasureConnectedPerSecCB, &gAcceptedPerSec, &*pcbe)))
 		{
@@ -373,20 +430,16 @@ namespace SevOL {
 		}
 		SetThreadpoolTimer(gpTPTimer, &*gp1000msecFT, 1000, 0);
 
-		if (!PreAccept(pListenContext))
+		//アクセプトpoolling
+		if (!(gpTPTimer = CreateThreadpoolTimer(TryAcceptTimerCB, &pListenContext, &*pcbe)))
 		{
-			cerr << "Err! StartListen.PreAccept. LINE:" << __LINE__ << "\r\n";
+			std::cerr << "err:CreateThreadpoolTimer. Code:" << to_string(WSAGetLastError()) << " LINE:" << __LINE__ << "\r\n";
 			return false;
 		}
+		SetThreadpoolTimer(gpTPTimer, &*gp100msecFT, 1000, 0);
 
-		//リッスンソケット完了ポート作成
-		
-		if (!(pListenContext->pTPListen = CreateThreadpoolIo((HANDLE)pListenContext->hSocket,OnListenCompCB, pListenContext, &*pcbe))) {
-			cerr << "Err! CreateThreadpoolIo. LINE:" << __LINE__ << "\r\n";
-			return false;
-		}
-		StartThreadpoolIo(pListenContext->pTPListen);
-		return 	true;
+
+
 	}
 
 	LPFN_ACCEPTEX GetAcceptEx(SocketListenContext* pListenSocket)
@@ -454,7 +507,7 @@ namespace SevOL {
 	void ShowStatus()
 	{
 		std::cout << "Total Connected: " << gTotalConnected << "\r\n";
-		std::cout << "Current Connecting: " << gTotalConnected - gCDel <<"\r\n";
+		std::cout << "Current Connecting: " << gTotalConnected - gCDel << "\r\n";
 		std::cout << "Max Connected: " << gMaxConnecting << "\r\n";
 		std::cout << "Max Accepted/Sec: " << gAcceptedPerSec << "\r\n\r\n";
 	}
@@ -515,10 +568,25 @@ namespace SevOL {
 		return true;
 	}
 
+	bool TryAccept(SocketListenContext* pListenSocket)
+	{
+
+		return false;
+	}
+
 	FILETIME* Make1000mSecFileTime(FILETIME* pFiletime)
 	{
 		ULARGE_INTEGER ulDueTime;
 		ulDueTime.QuadPart = (ULONGLONG)-(1 * 10 * 1000 * 1000);
+		pFiletime->dwHighDateTime = ulDueTime.HighPart;
+		pFiletime->dwLowDateTime = ulDueTime.LowPart;
+		return pFiletime;
+	}
+
+	FILETIME* Make100mSecFileTime(FILETIME* pFiletime)
+	{
+		ULARGE_INTEGER ulDueTime;
+		ulDueTime.QuadPart = (ULONGLONG)-(1 * 10 * 1000 * 100);
 		pFiletime->dwHighDateTime = ulDueTime.HighPart;
 		pFiletime->dwLowDateTime = ulDueTime.LowPart;
 		return pFiletime;
