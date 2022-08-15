@@ -16,7 +16,7 @@ namespace SevPooll {
 	std::atomic_uint gMaxConnecting(0);
 	SocketContext gSockets[ELM_SIZE];
 	PTP_TIMER gpTPTimer(NULL);
-	u_int fEnd(0);
+	u_int gfEnd(0);
 
 	binary_semaphore gvPoollock(1);
 	binary_semaphore gvConnectedlock(1);
@@ -77,7 +77,15 @@ namespace SevPooll {
 	{ []()
 		{
 			const auto gp100msecFT = new FILETIME;
-			Make100mSecFileTime(gp100msecFT);
+			[gp100msecFT]()
+				{
+					ULARGE_INTEGER ulDueTime;
+					ulDueTime.QuadPart = (ULONGLONG)-(1 * 10 * 1000 * 100);
+					gp100msecFT->dwHighDateTime = ulDueTime.HighPart;
+					gp100msecFT->dwLowDateTime = ulDueTime.LowPart;
+					return gp100msecFT;
+			}();
+			//Make100mSecFileTime(gp100msecFT);
 			return gp100msecFT;
 		}()
 	,[](_Inout_ FILETIME* gp100msecFT)
@@ -86,256 +94,136 @@ namespace SevPooll {
 		}
 	};
 
+	const std::unique_ptr
+		< FILETIME
+		, void (*)(FILETIME*)
+		> gp10msecFT
+	{ []()
+		{
+			const auto gp10msecFT = new FILETIME;
+			[gp10msecFT]()
+				{
+					ULARGE_INTEGER ulDueTime;
+					ulDueTime.QuadPart = (ULONGLONG)-(1 * 10 * 1000 * 10);
+					gp10msecFT->dwHighDateTime = ulDueTime.HighPart;
+					gp10msecFT->dwLowDateTime = ulDueTime.LowPart;
+					return gp10msecFT;
+			}();
+			//Make100mSecFileTime(gp100msecFT);
+			return gp10msecFT;
+		}()
+	,[](_Inout_ FILETIME* gp10msecFT)
+		{
+				delete gp10msecFT;
+		}
+	};
+
 
 	VOID TryAcceptTimerCB(PTP_CALLBACK_INSTANCE Instance, PVOID Context, PTP_TIMER Timer)
 	{
-		SocketListenContext* pListen = (SocketListenContext*)Context;
+		SocketContext* pListen = (SocketContext*)Context;
 		//エンドフラグが立っていたら終了。
-		if (fEnd)
+		if (gfEnd)
 		{
+			SetThreadpoolTimer(Timer, NULL, 0, 0);
+			CloseThreadpoolTimer(Timer);
 			return;
 		}
 		SOCKET hSocket(NULL);
 		if ((hSocket = accept(pListen->hSocket, NULL, NULL)) == INVALID_SOCKET)
 		{
 			DWORD Err = WSAGetLastError();
-			if (Err != WSAEWOULDBLOCK)
+			if (!(Err == WSAEALREADY || Err== WSAEWOULDBLOCK))
 			{
 				cerr << "Err! TryAcceptTimerCB. accept. Code:" << Err << " LINE:" << __LINE__ << "\r\n";
+				SetThreadpoolTimer(Timer, NULL, 0, 0);
+				CloseThreadpoolTimer(Timer);
 				return;
 			}
+			SetThreadpoolTimer(Timer, &*gp10msecFT, 0, 0);
+			return;
 		}
 		else {
-			SocketContext*pSocket=gSocketsPool.Pop();
+			//接続あり
+			++gTotalConnected;
+			gMaxConnecting.store(max(gMaxConnecting.load(), (gTotalConnected.load() - gCDel.load())));
+
+			SocketContext* pSocket = gSocketsPool.Pop();
 			pSocket->hSocket = hSocket;
 			TP_TIMER* pTPTimer(NULL);
 			if (!(pTPTimer = CreateThreadpoolTimer(RecvAndSendTimerCB, pSocket, &*pcbe)))
 			{
 				DWORD Err = GetLastError();
 				cerr << "Err! TryAcceptTimerCB. CreateThreadpoolTimer. Code:" << Err << " LINE:" << __LINE__ << "\r\n";
+				SetThreadpoolTimer(Timer, NULL, 0, 0);
+				CloseThreadpoolTimer(Timer);
 				CleanupSocket(pSocket);
+				return;
 			}
+			SetThreadpoolTimer(pTPTimer, &*gp10msecFT, 0, 0);
 		}
+		SetThreadpoolTimer(Timer, &*gp10msecFT, 0, 0);
 		return VOID();
 	}
 
 	VOID RecvAndSendTimerCB(PTP_CALLBACK_INSTANCE Instance, PVOID Context, PTP_TIMER Timer)
 	{
-		return VOID();
-	}
-
-	VOID OnListenCompCB(PTP_CALLBACK_INSTANCE Instance, PVOID Context, PVOID Overlapped, ULONG IoResult, ULONG_PTR NumberOfBytesTransferred, PTP_IO Io)
-	{
-		//リッスンソケット
-		SocketListenContext* pListenSocket = (SocketListenContext*)Context;
-		//アクセプトソケット
-		SocketContext* pSocket = (SocketContext*)Overlapped;
-
-		//エラー確認
-		if (IoResult)
-		{
-			//アプリケーションにより終了
-			if (IoResult == ERROR_OPERATION_ABORTED)
-			{
-				return;
-			}
-			MyTRACE(("Err! OnListenCompCB Result:" + to_string(IoResult) + " Line:" + to_string(__LINE__) + "\r\n").c_str());
-			cout << "End Listen\r\n";
-			return;
-		}
-		++gTotalConnected;
-		gMaxConnecting.store(max(gMaxConnecting.load(), (gTotalConnected.load() - gCDel.load())));
-
-		if (!NumberOfBytesTransferred)
-		{
-			CleanupSocket(pSocket);
-			//次のアクセプト
-			if (!PreAccept(pListenSocket))
-			{
-				cerr << "Err! OnListenCompCB. PreAccept.LINE:" << __LINE__ << "\r\n";
-				return;
-			}
-			return;
-		}
-
-		pListenSocket->ReadBuf.resize(NumberOfBytesTransferred);
-
-		//アクセプトIO完了ポート設定
-
-		if (!(pSocket->pTPIo = CreateThreadpoolIo((HANDLE)pSocket->hSocket, OnSocketNoticeCompCB, pSocket, &*pcbe)))
-		{
-			DWORD Err = GetLastError();
-			cerr << "Err! OnListenCompCB. CreateThreadpoolIo. CODE:" << to_string(Err) << "\r\n";
-			CleanupSocket(pSocket);
-			return;
-		}
-		StartThreadpoolIo(pSocket->pTPIo);
-
-
-		//読み取りデータをアクセプトソケットに移す。
-		pSocket->RemBuf = pListenSocket->ReadBuf;
-		StartThreadpoolIo(Io);
-		//次のアクセプト
-		if (!PreAccept(pListenSocket))
-		{
-			cerr << "Err! OnListenCompCB. PreAccept.LINE:" << __LINE__ << "\r\n";
-			return;
-		}
-		//改行で分ける。
-		pSocket->WriteBuf = SplitLastLineBreak(pSocket->RemBuf);
-		//送信できるものがあれば送信
-		if (pSocket->WriteBuf.size())
-		{
-			pSocket->WriteBuf += "\r\n";
-			TP_WORK* pTPWork(NULL);
-			if (!(pTPWork = CreateThreadpoolWork(SendWorkCB, pSocket, &*pcbe)))
-			{
-				DWORD Err = GetLastError();
-				cerr << "Err! OnSocketNoticeCompCB CreateThreadpoolWork.Code:" << to_string(Err) << " LINE:" << __LINE__ << "\r\n";
-				CleanupSocket(pSocket);
-				return;
-			}
-			SubmitThreadpoolWork(pTPWork);
-		}
-		//でなければ、受信体制
-		else {
-			TP_WORK* pTPWork(NULL);
-			if (!(pTPWork = CreateThreadpoolWork(RecvWorkCB, pSocket, &*pcbe)))
-			{
-				DWORD Err = GetLastError();
-				cerr << "Err! OnSocketNoticeCompCB CreateThreadpoolWork.Code:" << to_string(Err) << " LINE:" << __LINE__ << "\r\n";
-				CleanupSocket(pSocket);
-				return;
-			}
-			SubmitThreadpoolWork(pTPWork);
-		}
-
-		return;
-	}
-
-	VOID OnSocketNoticeCompCB(PTP_CALLBACK_INSTANCE Instance, PVOID Context, PVOID Overlapped, ULONG IoResult, ULONG_PTR NumberOfBytesTransferred, PTP_IO Io)
-	{
 		SocketContext* pSocket = (SocketContext*)Context;
-
-		//エラー確認
-		if (IoResult)
+		if (gfEnd)
 		{
-			//即刻終了
-			if (IoResult == ERROR_CONNECTION_ABORTED)
-			{
-				CloseThreadpoolIo(Io);
-				CleanupSocket(pSocket);
-				return;
-			}
-			MyTRACE(("Err! OnSocketNoticeCompCB Code:" + to_string(IoResult) + " Line:" + to_string(__LINE__) + "\r\n").c_str());
-			CloseThreadpoolIo(Io);
+			SetThreadpoolTimer(Timer, NULL, 0, 0);
+			CloseThreadpoolTimer(Timer);
 			CleanupSocket(pSocket);
 			return;
 		}
-
-		//切断か確認。
-		if (!NumberOfBytesTransferred)
-		{
-			MyTRACE("Socket Closed\r\n");
-			CloseThreadpoolIo(Io);
-			CleanupSocket(pSocket);
-			return;
-		}
-
-		//レシーブの完了か確認。
-		if (pSocket->Dir == SocketContext::eDir::OL_RECV)
-		{
-			pSocket->RemBuf += {pSocket->wsaReadBuf.buf, NumberOfBytesTransferred};
-			//最後の改行からをWriteBufに入れる。
-			pSocket->WriteBuf = SplitLastLineBreak(pSocket->RemBuf);
-
-			//WriteBufに中身があれば、エコー送信の開始
-			if (pSocket->WriteBuf.size())
-			{
-				pSocket->WriteBuf += "\r\n";
-				TP_WORK* pTPWork(NULL);
-				if (!(pTPWork = CreateThreadpoolWork(SendWorkCB, pSocket, &*pcbe)))
-				{
-					DWORD Err = GetLastError();
-					cerr << "Err! OnSocketNoticeCompCB CreateThreadpoolWork.Code:" << to_string(Err) << " LINE:" << __LINE__ << "\r\n";
-				}
-				SubmitThreadpoolWork(pTPWork);
-			}
-			else {
-				//WriteBufに中身がない場合送信はしない。受信完了ポートスタート。
-				TP_WORK* pTPWork(NULL);
-				if (!(pTPWork = CreateThreadpoolWork(RecvWorkCB, pSocket, &*pcbe)))
-				{
-					DWORD Err = GetLastError();
-					cerr << "Err! OnSocketNoticeCompCB CreateThreadpoolWork.Code:" << to_string(Err) << " LINE:" << __LINE__ << "\r\n";
-				}
-				SubmitThreadpoolWork(pTPWork);
-			}
-			return;
-		}
-		else if (pSocket->Dir == SocketContext::eDir::OL_SEND)
-		{
-			MyTRACE(("Sent:" + pSocket->WriteBuf).c_str());
-
-			//受信完了ポートスタート。
-			TP_WORK* pTPWork(NULL);
-			if (!(pTPWork = CreateThreadpoolWork(RecvWorkCB, pSocket, &*pcbe)))
-			{
-				DWORD Err = GetLastError();
-				cerr << "Err! OnSocketNoticeCompCB CreateThreadpoolWork.Code:" << to_string(Err) << " LINE:" << __LINE__ << "\r\n";
-			}
-			SubmitThreadpoolWork(pTPWork);
-		}
-		else {
-			int i = 0;//通常ここには来ない。
-		}
-		return;
-	}
-
-	VOID SendWorkCB(PTP_CALLBACK_INSTANCE Instance, PVOID Context, PTP_WORK Work)
-	{
-		CloseThreadpoolWork(Work);
-		SocketContext* pSocket = (SocketContext*)Context;
-		StartThreadpoolIo(pSocket->pTPIo);
-		pSocket->Dir = SocketContext::eDir::OL_SEND;
-		pSocket->StrToWsa(&pSocket->WriteBuf, &pSocket->wsaWriteBuf);
-		if (WSASend(pSocket->hSocket, &pSocket->wsaWriteBuf, 1, NULL, 0, pSocket, NULL))
-		{
-			DWORD Err(NULL);
-			if ((Err = WSAGetLastError()) != WSA_IO_PENDING) {
-				cerr << "Err! WSASend.Code:" << to_string(Err) << " LINE:" << __LINE__ << "\r\n";
-				CloseThreadpoolIo(pSocket->pTPIo);
-				CleanupSocket(pSocket);
-				return;
-			}
-		}
-
-		return VOID();
-	}
-
-	VOID RecvWorkCB(PTP_CALLBACK_INSTANCE Instance, PVOID Context, PTP_WORK Work)
-	{
-		CloseThreadpoolWork(Work);
-		SocketContext* pSocket = (SocketContext*)Context;
-		//受信体制を取る。
-
-		pSocket->Dir = SocketContext::eDir::OL_RECV;
-		pSocket->ReadBuf.resize(BUFFER_SIZE, '\0');
-		pSocket->StrToWsa(&pSocket->ReadBuf, &pSocket->wsaReadBuf);
-
-		StartThreadpoolIo(pSocket->pTPIo);
-		if (!WSARecv(pSocket->hSocket, &pSocket->wsaReadBuf, 1, NULL, &pSocket->flags, pSocket, NULL))
+		pSocket->ReadBuf.resize(BUFFER_SIZE,'\0');
+		int result(NULL);
+		if((result=recv(pSocket->hSocket, pSocket->ReadBuf.data(), pSocket->ReadBuf.length(), 0))==SOCKET_ERROR)
 		{
 			DWORD Err = WSAGetLastError();
-			if (!(Err != WSA_IO_PENDING || Err != 0))
+			if (Err != WSAEWOULDBLOCK)
 			{
-				cerr << "Err! RecvWorkCB.Code:" << to_string(Err) << " LINE:" << __LINE__ << "\r\n";
-				CloseThreadpoolIo(pSocket->pTPIo);
+				cerr << "Err! RecvAndSendTimerCB. recv. Code:" << Err << " LINE:" << __LINE__ << "\r\n";
+				SetThreadpoolTimer(Timer, NULL, 0, 0);
+				CloseThreadpoolTimer(Timer);
+				CleanupSocket(pSocket);
+				return;
+			}
+			else {
+				SetThreadpoolTimer(Timer, &*gp10msecFT, 0, 0);
+				return;
+			}
+		}
+		pSocket->ReadBuf.resize(result);
+		if (pSocket->ReadBuf.size() == 0)
+		{
+			MyTRACE("Socket Close\r\n");
+			SetThreadpoolTimer(Timer, NULL, 0, 0);
+			CloseThreadpoolTimer(Timer);
+			CleanupSocket(pSocket);
+			return;
+		}
+		pSocket->RemBuf += pSocket->ReadBuf;
+		pSocket->WriteBuf = SplitLastLineBreak(pSocket->RemBuf);
+		if (pSocket->WriteBuf.size() > 0)
+		{
+			//センド
+			int len(0);
+			pSocket->WriteBuf += "\r\n";
+			if((len=send(pSocket->hSocket, pSocket->WriteBuf.data(), pSocket->WriteBuf.size(), 0))== SOCKET_ERROR)
+			{
+				DWORD Err = WSAGetLastError();
+				cerr << "Err! RecvAndSendTimerCB. send. Code:" << Err << " LINE:" << __LINE__ << "\r\n";
+				SetThreadpoolTimer(Timer, NULL, 0, 0);
+				CloseThreadpoolTimer(Timer);
 				CleanupSocket(pSocket);
 				return;
 			}
 		}
+		SetThreadpoolTimer(Timer, &*gp10msecFT, 0, 0);
+		return VOID();
 	}
+
 	VOID MeasureConnectedPerSecCB(PTP_CALLBACK_INSTANCE Instance, PVOID Context, PTP_TIMER Timer)
 	{
 		static u_int oldNum(0);
@@ -357,12 +245,10 @@ namespace SevPooll {
 		{
 			ShowStatus();
 		}
-		//		IncDelCount();
-				//		PreAccept(gpListenContext);
 	}
 
 
-	int StartListen(SocketListenContext* pListenContext)
+	int StartListen(SocketContext* pListenContext)
 	{
 		cout << "Start Listen\r\n";
 		//デバック用にIDをつける。リッスンソケットIDは0。
@@ -431,84 +317,32 @@ namespace SevPooll {
 		SetThreadpoolTimer(gpTPTimer, &*gp1000msecFT, 1000, 0);
 
 		//アクセプトpoolling
-		if (!(gpTPTimer = CreateThreadpoolTimer(TryAcceptTimerCB, &pListenContext, &*pcbe)))
+		TP_TIMER* pTPTimer(NULL);
+		if (!(pTPTimer = CreateThreadpoolTimer(TryAcceptTimerCB, pListenContext, &*pcbe)))
 		{
 			std::cerr << "err:CreateThreadpoolTimer. Code:" << to_string(WSAGetLastError()) << " LINE:" << __LINE__ << "\r\n";
 			return false;
 		}
-		SetThreadpoolTimer(gpTPTimer, &*gp100msecFT, 1000, 0);
-
-
-
+		SetThreadpoolTimer(pTPTimer, &*gp10msecFT, 0, 0);
 	}
 
-	LPFN_ACCEPTEX GetAcceptEx(SocketListenContext* pListenSocket)
+	void EndListen(SocketContext* pListen)
 	{
-		GUID GuidAcceptEx = WSAID_ACCEPTEX;
-		int iResult = 0;
-		static LPFN_ACCEPTEX lpfnAcceptEx(NULL);
-		static SOCKET hSocket(NULL);
-		DWORD dwBytes;
-		if (!lpfnAcceptEx || hSocket != pListenSocket->hSocket)
+		if (gpTPTimer)
 		{
-			try {
-				if (WSAIoctl(pListenSocket->hSocket, SIO_GET_EXTENSION_FUNCTION_POINTER,
-					&GuidAcceptEx, sizeof(GuidAcceptEx),
-					&lpfnAcceptEx, sizeof(lpfnAcceptEx),
-					&dwBytes, NULL, NULL) == SOCKET_ERROR)
-				{
-					throw std::runtime_error("Create'GetAcceptEx'error! Code:" + to_string(WSAGetLastError()) + " LINE:" + to_string(__LINE__) + "\r\n");
-				}
-			}
-			catch (std::exception& e) {
-				// 例外を捕捉
-				// エラー理由を出力する
-				std::cerr << e.what() << std::endl;
-			}
+			SetThreadpoolTimer(gpTPTimer, NULL, 0, 0);
+			CloseThreadpoolTimer(gpTPTimer);
+			gpTPTimer = NULL;
 		}
-		hSocket = pListenSocket->hSocket;
-		return lpfnAcceptEx;
-	}
+		gfEnd = TRUE;
 
-	LPFN_GETACCEPTEXSOCKADDRS GetGetAcceptExSockaddrs(SocketContext* pSocket)
-	{
-		GUID GuidAcceptEx = WSAID_GETACCEPTEXSOCKADDRS;
-		int iResult = 0;
-		static LPFN_GETACCEPTEXSOCKADDRS lpfnAcceptEx(NULL);
-		static SOCKET hSocket(NULL);
-		DWORD dwBytes;
-		if (!lpfnAcceptEx || hSocket != pSocket->hSocket)
-		{
-			try {
-				if (WSAIoctl(pSocket->hSocket, SIO_GET_EXTENSION_FUNCTION_POINTER,
-					&GuidAcceptEx, sizeof(GuidAcceptEx),
-					&lpfnAcceptEx, sizeof(lpfnAcceptEx),
-					&dwBytes, NULL, NULL) == SOCKET_ERROR)
-				{
-					throw std::runtime_error("Create'GetAcceptEx'error! Code:" + to_string(WSAGetLastError()) + " LINE:" + to_string(__LINE__) + "File:" + __FILE__ + "\r\n");
-				}
-			}
-			catch (std::exception& e) {
-				// 例外を捕捉
-				// エラー理由を出力する
-				std::cerr << e.what() << std::endl;
-			}
-		}
-		hSocket = pSocket->hSocket;
-		return lpfnAcceptEx;
-	}
-
-	void EndListen(SocketListenContext* pListen)
-	{
-		WaitForThreadpoolTimerCallbacks(gpTPTimer, FALSE);
-		CloseThreadpoolTimer(gpTPTimer);
 	}
 
 	void ShowStatus()
 	{
 		std::cout << "Total Connected: " << gTotalConnected << "\r\n";
 		std::cout << "Current Connecting: " << gTotalConnected - gCDel << "\r\n";
-		std::cout << "Max Connected: " << gMaxConnecting << "\r\n";
+		std::cout << "Max Connectting: " << gMaxConnecting << "\r\n";
 		std::cout << "Max Accepted/Sec: " << gAcceptedPerSec << "\r\n\r\n";
 	}
 
@@ -541,38 +375,6 @@ namespace SevPooll {
 		return strsub;
 	}
 
-	bool PreAccept(SocketListenContext* pListenSocket)
-	{
-
-		//アクセプト用ソケット取り出し
-		SocketContext* pAcceptSocket = gSocketsPool.Pop();
-		//オープンソケット作成
-		if (!(pAcceptSocket->hSocket = WSASocket(AF_INET, SOCK_STREAM, IPPROTO_TCP, NULL, 0, WSA_FLAG_OVERLAPPED))) {
-			cerr << "Err WSASocket Code:" << to_string(WSAGetLastError()) << " Line:" << __LINE__ << "\r\n";
-			return false;
-		}
-
-		//デバック用ID設定
-		pAcceptSocket->ID = gID++;
-
-		//AcceptExの関数ポインタを取得し、実行。パラメーターはサンプルまんま。
-		if (!(*GetAcceptEx(pListenSocket))(pListenSocket->hSocket, pAcceptSocket->hSocket, pListenSocket->ReadBuf.data(), BUFFER_SIZE - ((sizeof(sockaddr_in) + 16) * 2), sizeof(sockaddr_in) + 16, sizeof(sockaddr_in) + 16, NULL, (OVERLAPPED*)pAcceptSocket))
-		{
-			DWORD err = GetLastError();
-			if (err != ERROR_IO_PENDING)
-			{
-				cerr << "AcceptEx return value error! Code:" + to_string(err) + " LINE:" + to_string(__LINE__) + "\r\n";
-				return false;
-			}
-		}
-		return true;
-	}
-
-	bool TryAccept(SocketListenContext* pListenSocket)
-	{
-
-		return false;
-	}
 
 	FILETIME* Make1000mSecFileTime(FILETIME* pFiletime)
 	{
@@ -582,14 +384,4 @@ namespace SevPooll {
 		pFiletime->dwLowDateTime = ulDueTime.LowPart;
 		return pFiletime;
 	}
-
-	FILETIME* Make100mSecFileTime(FILETIME* pFiletime)
-	{
-		ULARGE_INTEGER ulDueTime;
-		ulDueTime.QuadPart = (ULONGLONG)-(1 * 10 * 1000 * 100);
-		pFiletime->dwHighDateTime = ulDueTime.HighPart;
-		pFiletime->dwLowDateTime = ulDueTime.LowPart;
-		return pFiletime;
-	}
-
 }

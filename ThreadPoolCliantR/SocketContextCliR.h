@@ -20,7 +20,7 @@
 namespace ThreadPoolCliantR {
 
 	constexpr auto BUFFER_SIZE = 1024;
-	constexpr auto N_COUNTDOWNS = 3;
+	constexpr auto N_COUNTDOWNS = 10;
 
 	class SocketContext {
 	public:

@@ -40,8 +40,8 @@ namespace SevPooll {
 	, /*WINBASEAPI VOID WINAPI */CloseThreadpool/*(_Inout_ PTP_POOL ptpp)*/
 	};
 
-	SocketListenContext gListenContext;
-	SocketListenContext* gpListenContext = &gListenContext;
+	SocketContext gListenContext;
+	SocketContext* gpListenContext = &gListenContext;
 }
 
 int main()

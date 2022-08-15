@@ -34,37 +34,6 @@ namespace SevPooll {
         PTP_TIMER             Timer
     );
 
-    VOID CALLBACK OnListenCompCB(
-        PTP_CALLBACK_INSTANCE Instance,
-        PVOID                 Context,
-        PVOID                 Overlapped,
-        ULONG                 IoResult,
-        ULONG_PTR             NumberOfBytesTransferred,
-        PTP_IO                Io
-    );
-
-    VOID CALLBACK OnSocketNoticeCompCB(
-        PTP_CALLBACK_INSTANCE Instance,
-        PVOID                 Context,
-        PVOID                 Overlapped,
-        ULONG                 IoResult,
-        ULONG_PTR             NumberOfBytesTransferred,
-        PTP_IO                Io
-    );
-
-    VOID CALLBACK SendWorkCB(
-        _Inout_     PTP_CALLBACK_INSTANCE Instance,
-        _Inout_opt_ PVOID                 Context,
-        _Inout_     PTP_WORK              Work
-    );
-
-    VOID CALLBACK RecvWorkCB(
-        _Inout_     PTP_CALLBACK_INSTANCE Instance,
-        _Inout_opt_ PVOID                 Context,
-        _Inout_     PTP_WORK              Work
-    );
-
-
     VOID CALLBACK MeasureConnectedPerSecCB(
         PTP_CALLBACK_INSTANCE Instance,
         PVOID                 Context,
@@ -73,18 +42,13 @@ namespace SevPooll {
 
 
     void CleanupSocket(SocketContext* pSocket);
-    int StartListen(SocketListenContext*);
-    LPFN_ACCEPTEX GetAcceptEx(SocketListenContext* pAcceptSocket);
-    LPFN_GETACCEPTEXSOCKADDRS GetGetAcceptExSockaddrs(SocketContext* pListenSocket);
-    void EndListen(SocketListenContext* pListen);
+    int StartListen(SocketContext*);
+    void EndListen(SocketContext* pListen);
     void ShowStatus();
     void ClearStatus();
     std::string SplitLastLineBreak(std::string& str);
-    bool PreAccept(SocketListenContext* pListenSocket);
-    bool TryAccept(SocketListenContext* pListenSocket);
     FILETIME* Make1000mSecFileTime(FILETIME* pfiletime);
-    FILETIME* Make100mSecFileTime(FILETIME* pfiletime);
-#ifdef _DEBUG
+#ifdef MY_DEBUG
 #define    MyTRACE(lpsz) OutputDebugStringA(lpsz);
 #else
 #define MyTRACE __noop

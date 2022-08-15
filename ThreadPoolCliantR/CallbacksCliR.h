@@ -22,7 +22,7 @@ namespace ThreadPoolCliantR {
 
 	constexpr auto ELM_SIZE = 0x4000;
 	constexpr auto NUM_THREAD = 3;
-	constexpr auto NUM_CONNECT =5000;
+	constexpr auto NUM_CONNECT =1000;
 	//ï\é¶ó}êß
 //#define DISPLAY_SUPPRESSION
 	class SocketContext;

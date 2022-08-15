@@ -22,47 +22,16 @@ namespace SevPooll {
     constexpr auto BUFFER_SIZE = 1024;
 
     using namespace std;
-    struct DirOVERLAPPED :public WSAOVERLAPPED {
-        DirOVERLAPPED(int dir) :WSAOVERLAPPED{}, Dir(dir) {}
-        const int Dir;
-    };
 
-    class SocketContext :public WSAOVERLAPPED {
+    class SocketContext {
     public:
         SocketContext();
         ~SocketContext();
         void ReInitialize();
-        void InitWsaBuf(WSABUF* pwsa, string* pstr);
-        void WsaToStr(WSABUF* pwsa, string* pstr);
-        void StrToWsa(string* pstr, WSABUF* pwsa);
-        HANDLE *phEvEnd;
-
-
-        WSABUF wsaReadBuf;
-        WSABUF wsaWriteBuf;
         SOCKET hSocket;
         string ReadBuf;
         string WriteBuf;
         string RemBuf;
         u_short ID;
-        enum eDir {
-            OL_NOT_SELECTED = 0, OL_RECV, OL_SEND
-        };
-        enum eDir Dir;
-        DWORD NumberOfBytesSent;
-        DWORD NumberOfBytesRecvd;
-        DWORD flags;
-        TP_IO* pTPIo;
     };
-
-    class SocketListenContext
-        : public SocketContext
-    {
-    public:
-        SocketListenContext();
-        ~SocketListenContext();
-        void ReInitialize();
-        PTP_IO pTPListen;
-    };
-
 }
