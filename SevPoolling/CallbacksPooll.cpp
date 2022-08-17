@@ -61,7 +61,14 @@ namespace SevPooll {
 	{ []()
 		{
 			const auto gp1000msecFT = new FILETIME;
-			Make1000mSecFileTime(gp1000msecFT);
+			[gp1000msecFT]()
+			{
+				ULARGE_INTEGER ulDueTime;
+				ulDueTime.QuadPart = (ULONGLONG)-(1 * 10 * 1000 * 1000);
+				gp1000msecFT->dwHighDateTime = ulDueTime.HighPart;
+				gp1000msecFT->dwLowDateTime = ulDueTime.LowPart;
+				return gp1000msecFT;
+			}();
 			return gp1000msecFT;
 		}()
 	,[](_Inout_ FILETIME* gp1000msecFT)
@@ -85,7 +92,6 @@ namespace SevPooll {
 					gp100msecFT->dwLowDateTime = ulDueTime.LowPart;
 					return gp100msecFT;
 			}();
-			//Make100mSecFileTime(gp100msecFT);
 			return gp100msecFT;
 		}()
 	,[](_Inout_ FILETIME* gp100msecFT)
@@ -109,7 +115,6 @@ namespace SevPooll {
 					gp10msecFT->dwLowDateTime = ulDueTime.LowPart;
 					return gp10msecFT;
 			}();
-			//Make100mSecFileTime(gp100msecFT);
 			return gp10msecFT;
 		}()
 	,[](_Inout_ FILETIME* gp10msecFT)
@@ -150,6 +155,11 @@ namespace SevPooll {
 
 			SocketContext* pSocket = gSocketsPool.Pop();
 			pSocket->hSocket = hSocket;
+
+			//ノンブロッキングモードに変更
+			u_long flag = 1;
+			ioctlsocket(pSocket->hSocket, FIONBIO, &flag);
+
 			TP_TIMER* pTPTimer(NULL);
 			if (!(pTPTimer = CreateThreadpoolTimer(RecvAndSendTimerCB, pSocket, &*pcbe)))
 			{
@@ -375,13 +385,4 @@ namespace SevPooll {
 		return strsub;
 	}
 
-
-	FILETIME* Make1000mSecFileTime(FILETIME* pFiletime)
-	{
-		ULARGE_INTEGER ulDueTime;
-		ulDueTime.QuadPart = (ULONGLONG)-(1 * 10 * 1000 * 1000);
-		pFiletime->dwHighDateTime = ulDueTime.HighPart;
-		pFiletime->dwLowDateTime = ulDueTime.LowPart;
-		return pFiletime;
-	}
 }

@@ -47,7 +47,6 @@ namespace SevPooll {
     void ShowStatus();
     void ClearStatus();
     std::string SplitLastLineBreak(std::string& str);
-    FILETIME* Make1000mSecFileTime(FILETIME* pfiletime);
 #ifdef MY_DEBUG
 #define    MyTRACE(lpsz) OutputDebugStringA(lpsz);
 #else
