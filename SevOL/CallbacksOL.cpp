@@ -16,8 +16,8 @@ namespace SevOL {
 	std::atomic_uint gTotalConnected(0);
 	std::atomic_uint gCDel(0);
 	std::atomic_uint gMaxConnecting(0);
-	std::atomic<BOOL> gFrontReEnterGuard(FALSE);
-	std::atomic<BOOL> gBackReEnterGuard(FALSE);
+	//std::atomic<BOOL> gFrontReEnterGuard(FALSE);
+	//std::atomic<BOOL> gBackReEnterGuard(FALSE);
 	SocketContext gSockets[ELM_SIZE];
 	SocketContext gSocketsBack[ELM_SIZE];
 	PTP_TIMER gpTPTimer(NULL);
@@ -126,7 +126,7 @@ namespace SevOL {
 			CleanupSocket(pSocket);
 			return;
 		}
-		StartThreadpoolIo(pSocket->pTPIo);
+//		StartThreadpoolIo(pSocket->pTPIo);
 
 		//バックエンドDB向けIO完了ポート設定
 		if (!(pSocket->pTPBackIo = CreateThreadpoolIo((HANDLE)pSocket->hSocketBack, OnSocketBackNoticeCompCB, pSocket, &*pcbe)))
@@ -137,7 +137,7 @@ namespace SevOL {
 			return;
 		}
 		//これをしておかないとメモリ破損
-		StartThreadpoolIo(pSocket->pTPBackIo);
+//		StartThreadpoolIo(pSocket->pTPBackIo);
 
 		//読み取りデータをアクセプトソケットに移す。
 		pSocket->RemBuf = pListenSocket->ReadBuf;
@@ -158,38 +158,99 @@ namespace SevOL {
 		if (pSocket->WriteBackBuf.size())
 		{
 			pSocket->WriteBackBuf += "\r\n";
-			TP_WORK* pTPWork(NULL);
+			//TP_WORK* pTPWork(NULL);
 			//再帰が面倒くさいのでバックへの送信と、フロントの受信待ちをCBで行う
-			if (!(pTPWork = CreateThreadpoolWork(SendBackWorkCB, pSocket, &*pcbe)))
+			//if (!(pTPWork = CreateThreadpoolWork(SendBackWorkCB, pSocket, &*pcbe)))
+			//{
+			//	DWORD Err = GetLastError();
+			//	cerr << "Err! OnListenCompCB. CreateThreadpoolWork.Code:" << to_string(Err) << " LINE:" << __LINE__ << "\r\n";
+			//	CleanupSocket(pSocket);
+			//	return;
+			//}
+			//SubmitThreadpoolWork(pTPWork);
+			//バックへの送信
+			if (!SendBack(pSocket))
 			{
-				DWORD Err = GetLastError();
-				cerr << "Err! OnListenCompCB. CreateThreadpoolWork.Code:" << to_string(Err) << " LINE:" << __LINE__ << "\r\n";
 				CleanupSocket(pSocket);
 				return;
 			}
-			SubmitThreadpoolWork(pTPWork);
+			//StartThreadpoolIo(pSocket->pTPBackIo);
+			//pSocket->DirBack = SocketContext::eDir::DIR_TO_BACK;
+			//pSocket->StrToWsa(&pSocket->WriteBackBuf, &pSocket->wsaWriteBackBuf);
+			//if (WSASend(pSocket->hSocketBack, &pSocket->wsaWriteBackBuf, 1, NULL, 0, &pSocket->OLBack, NULL))
+			//{
+			//	DWORD Err(NULL);
+			//	if ((Err = WSAGetLastError()) != WSA_IO_PENDING) {
+			//		cerr << "Err! SendBackWorkCB. WSASend.Code:" << to_string(Err) << " LINE:" << __LINE__ << "\r\n";
+			//		//				CloseThreadpoolIo(pSocket->pTPBackIo);
+			//		CleanupSocket(pSocket);
+			//		return;
+			//	}
+			//}
 
-			if (!(pTPWork = CreateThreadpoolWork(RecvWorkCB, pSocket, &*pcbe)))
+			//フロントの受信
+			if (!RecvFront(pSocket))
 			{
-				DWORD Err = GetLastError();
-				cerr << "Err! OnListenCompCB. CreateThreadpoolWork.Code:" << to_string(Err) << " LINE:" << __LINE__ << "\r\n";
 				CleanupSocket(pSocket);
 				return;
 			}
-			SubmitThreadpoolWork(pTPWork);
+
+			//StartThreadpoolIo(pSocket->pTPIo);
+			//pSocket->Dir = SocketContext::eDir::DIR_TO_BACK;
+			//pSocket->ReadBuf.resize(BUFFER_SIZE, '\0');
+			//pSocket->StrToWsa(&pSocket->ReadBuf, &pSocket->wsaReadBuf);
+			//if (!WSARecv(pSocket->hSocket, &pSocket->wsaReadBuf, 1, NULL, &pSocket->flags, pSocket, NULL))
+			//{
+			//	DWORD Err = WSAGetLastError();
+			//	if (Err != WSA_IO_PENDING && Err != 0)
+			//	{
+			//		cerr << "Err! RecvWorkCB.Code:" << to_string(Err) << " LINE:" << __LINE__ << "\r\n";
+			//		//				CloseThreadpoolIo(pSocket->pTPIo);
+			//		CleanupSocket(pSocket);
+			//		return;
+			//	}
+			//}
+
+			//if (!(pTPWork = CreateThreadpoolWork(RecvWorkCB, pSocket, &*pcbe)))
+			//{
+			//	DWORD Err = GetLastError();
+			//	cerr << "Err! OnListenCompCB. CreateThreadpoolWork.Code:" << to_string(Err) << " LINE:" << __LINE__ << "\r\n";
+			//	CleanupSocket(pSocket);
+			//	return;
+			//}
+			//SubmitThreadpoolWork(pTPWork);
 
 		//でなければ、フロントからの受信体制
 		}else {
-		
-			TP_WORK* pTPWork(NULL);
-			if (!(pTPWork = CreateThreadpoolWork(RecvWorkCB, pSocket, &*pcbe)))
+			if (!RecvFront(pSocket))
 			{
-				DWORD Err = GetLastError();
-				cerr << "Err! OnListenCompCB. CreateThreadpoolWork.Code:" << to_string(Err) << " LINE:" << __LINE__ << "\r\n";
 				CleanupSocket(pSocket);
-				return;
 			}
-			SubmitThreadpoolWork(pTPWork);
+			//StartThreadpoolIo(pSocket->pTPIo);
+			//pSocket->Dir = SocketContext::eDir::DIR_TO_BACK;
+			//pSocket->ReadBuf.resize(BUFFER_SIZE, '\0');
+			//pSocket->StrToWsa(&pSocket->ReadBuf, &pSocket->wsaReadBuf);
+			//if (!WSARecv(pSocket->hSocket, &pSocket->wsaReadBuf, 1, NULL, &pSocket->flags, pSocket, NULL))
+			//{
+			//	DWORD Err = WSAGetLastError();
+			//	if (Err != WSA_IO_PENDING && Err != 0)
+			//	{
+			//		cerr << "Err! RecvWorkCB.Code:" << to_string(Err) << " LINE:" << __LINE__ << "\r\n";
+			//		//				CloseThreadpoolIo(pSocket->pTPIo);
+			//		CleanupSocket(pSocket);
+			//		return;
+			//	}
+			//}
+
+			//TP_WORK* pTPWork(NULL);
+			//if (!(pTPWork = CreateThreadpoolWork(RecvWorkCB, pSocket, &*pcbe)))
+			//{
+			//	DWORD Err = GetLastError();
+			//	cerr << "Err! OnListenCompCB. CreateThreadpoolWork.Code:" << to_string(Err) << " LINE:" << __LINE__ << "\r\n";
+			//	CleanupSocket(pSocket);
+			//	return;
+			//}
+			//SubmitThreadpoolWork(pTPWork);
 		}
 		return;
 	}
@@ -197,15 +258,15 @@ namespace SevOL {
 	VOID OnSocketNoticeCompCB(PTP_CALLBACK_INSTANCE Instance, PVOID Context, PVOID Overlapped, ULONG IoResult, ULONG_PTR NumberOfBytesTransferred, PTP_IO Io)
 	{
 		MyTRACE("Enter OnSocketNoticeCompCB\r\n");
+		SocketContext* pSocket = (SocketContext*)Context;
 		int expected = FALSE;
-		if (!gFrontReEnterGuard.compare_exchange_strong(expected, TRUE))
+		if (!pSocket->fFrontReEnterGuard.compare_exchange_strong(expected, TRUE))
 		{
 			StartThreadpoolIo(Io);
-			MyTRACE("ReEnter OnSocketNoticeCompCB");
+			MyTRACE("ReEnter OnSocketNoticeCompCB\r\n");
 			return;
 		}
 
-		SocketContext* pSocket = (SocketContext*)Context;
 
 		//エラー確認
 		if (IoResult)
@@ -215,23 +276,23 @@ namespace SevOL {
 			{
 //				CloseThreadpoolIo(Io);
 				CleanupSocket(pSocket);
-				gFrontReEnterGuard = FALSE;
+				pSocket->fFrontReEnterGuard = FALSE;
 				return;
 			}
 			MyTRACE(("Err! OnSocketNoticeCompCB Code:" + to_string(IoResult) + " Line:" + to_string(__LINE__) + "\r\n").c_str());
 //			CloseThreadpoolIo(Io);
 			CleanupSocket(pSocket);
-			gFrontReEnterGuard = FALSE;
+			pSocket->fFrontReEnterGuard = FALSE;
 			return;
 		}
 
 		//切断か確認。
 		if (!NumberOfBytesTransferred)
 		{
-			MyTRACE("Socket Closed\r\n");
+			MyTRACE(("Socket ID:"+to_string(pSocket->ID)+ " Closed\r\n").c_str());
 //			CloseThreadpoolIo(Io);
 			CleanupSocket(pSocket);
-			gFrontReEnterGuard = FALSE;
+			pSocket->fFrontReEnterGuard = FALSE;
 			return;
 		}
 //		StartThreadpoolIo(Io);
@@ -248,39 +309,57 @@ namespace SevOL {
 			if (pSocket->WriteBackBuf.size())
 			{
 				pSocket->WriteBackBuf += "\r\n";
-				TP_WORK* pTPWork(NULL);
-				if (!(pTPWork = CreateThreadpoolWork(SendBackWorkCB, pSocket, &*pcbe)))
+				if (!SendBack(pSocket))
 				{
-					DWORD Err = GetLastError();
-					cerr << "Err! OnSocketNoticeCompCB CreateThreadpoolWork.Code:" << to_string(Err) << " LINE:" << __LINE__ << "\r\n";
-					gFrontReEnterGuard = FALSE;
+					CleanupSocket(pSocket);
+					pSocket->fFrontReEnterGuard = FALSE;
 					return;
 				}
-				SubmitThreadpoolWork(pTPWork);
+				//TP_WORK* pTPWork(NULL);
+				//if (!(pTPWork = CreateThreadpoolWork(SendBackWorkCB, pSocket, &*pcbe)))
+				//{
+				//	DWORD Err = GetLastError();
+				//	cerr << "Err! OnSocketNoticeCompCB CreateThreadpoolWork.Code:" << to_string(Err) << " LINE:" << __LINE__ << "\r\n";
+				//	pSocket->fFrontReEnterGuard = FALSE;
+				//	return;
+				//}
+				//SubmitThreadpoolWork(pTPWork);
 				//受信の準備
-				if (!(pTPWork = CreateThreadpoolWork(RecvWorkCB, pSocket, &*pcbe)))
+				if (!RecvFront(pSocket))
 				{
-					DWORD Err = GetLastError();
-					cerr << "Err! OnSocketNoticeCompCB CreateThreadpoolWork.Code:" << to_string(Err) << " LINE:" << __LINE__ << "\r\n";
-					gFrontReEnterGuard = FALSE;
+					CleanupSocket(pSocket);
+					pSocket->fFrontReEnterGuard = FALSE;
 					return;
 				}
-				SubmitThreadpoolWork(pTPWork);
+				//if (!(pTPWork = CreateThreadpoolWork(RecvWorkCB, pSocket, &*pcbe)))
+				//{
+				//	DWORD Err = GetLastError();
+				//	cerr << "Err! OnSocketNoticeCompCB CreateThreadpoolWork.Code:" << to_string(Err) << " LINE:" << __LINE__ << "\r\n";
+				//	pSocket->fFrontReEnterGuard = FALSE;
+				//	return;
+				//}
+				//SubmitThreadpoolWork(pTPWork);
 
 			}
 			else{
 				//WriteBufに中身がない場合送信はしない。受信完了ポートスタート。
-				TP_WORK* pTPWork(NULL);
-				if (!(pTPWork = CreateThreadpoolWork(RecvWorkCB, pSocket, &*pcbe)))
+				if (!RecvFront(pSocket))
 				{
-					DWORD Err = GetLastError();
-					cerr << "Err! OnSocketNoticeCompCB CreateThreadpoolWork.Code:" << to_string(Err) << " LINE:" << __LINE__ << "\r\n";
-					gFrontReEnterGuard = FALSE;
+					CleanupSocket(pSocket);
+					pSocket->fFrontReEnterGuard = FALSE;
 					return;
 				}
-				SubmitThreadpoolWork(pTPWork);
+				//TP_WORK* pTPWork(NULL);
+				//if (!(pTPWork = CreateThreadpoolWork(RecvWorkCB, pSocket, &*pcbe)))
+				//{
+				//	DWORD Err = GetLastError();
+				//	cerr << "Err! OnSocketNoticeCompCB CreateThreadpoolWork.Code:" << to_string(Err) << " LINE:" << __LINE__ << "\r\n";
+				//	pSocket->fFrontReEnterGuard = FALSE;
+				//	return;
+				//}
+				//SubmitThreadpoolWork(pTPWork);
 			}
-			gFrontReEnterGuard = FALSE;
+			pSocket->fFrontReEnterGuard = FALSE;
 			return;
 		}
 		//送信完了。
@@ -289,35 +368,41 @@ namespace SevOL {
 			MyTRACE(("SevOL Front Sent:" + pSocket->WriteBuf).c_str());
 			pSocket->WriteBuf.clear();
 			//受信完了ポートスタート。
-			TP_WORK* pTPWork(NULL);
-			if (!(pTPWork = CreateThreadpoolWork(RecvWorkCB, pSocket, &*pcbe)))
+			if (!RecvFront(pSocket))
 			{
-				DWORD Err = GetLastError();
-				cerr << "Err! OnSocketNoticeCompCB CreateThreadpoolWork.Code:" << to_string(Err) << " LINE:" << __LINE__ << "\r\n";
-				gFrontReEnterGuard = FALSE;
+				CleanupSocket(pSocket);
+				pSocket->fFrontReEnterGuard = FALSE;
 				return;
 			}
-			SubmitThreadpoolWork(pTPWork);
+			//TP_WORK* pTPWork(NULL);
+			//if (!(pTPWork = CreateThreadpoolWork(RecvWorkCB, pSocket, &*pcbe)))
+			//{
+			//	DWORD Err = GetLastError();
+			//	cerr << "Err! OnSocketNoticeCompCB CreateThreadpoolWork.Code:" << to_string(Err) << " LINE:" << __LINE__ << "\r\n";
+			//	pSocket->fFrontReEnterGuard = FALSE;
+			//	return;
+			//}
+			//SubmitThreadpoolWork(pTPWork);
 		}
 		else {
 			int i = 0;//通常ここには来ない。
 		}
-		gFrontReEnterGuard = FALSE;
+		pSocket->fFrontReEnterGuard = FALSE;
 		return;
 	}
 
 	VOID OnSocketBackNoticeCompCB(PTP_CALLBACK_INSTANCE Instance, PVOID Context, PVOID Overlapped, ULONG IoResult, ULONG_PTR NumberOfBytesTransferred, PTP_IO Io)
 	{
 		MyTRACE("Enter OnSocketBackNoticeCompCB\r\n");
+		SocketContext* pSocket = (SocketContext*)Context;
 		int expected = FALSE;
-		if (!gBackReEnterGuard.compare_exchange_strong(expected, TRUE))
+		if (!pSocket->fBackReEnterGuard.compare_exchange_strong(expected, TRUE))
 		{
 			StartThreadpoolIo(Io);
 			MyTRACE("ReEnter OnSocketNoticeCompCB");
 			return;
 		}
 
-		SocketContext* pSocket = (SocketContext*)Context;
 		//エラー確認
 		if (IoResult)
 		{
@@ -326,23 +411,23 @@ namespace SevOL {
 			{
 //				CloseThreadpoolIo(Io);
 				CleanupSocket(pSocket);
-				gBackReEnterGuard = FALSE;
+				pSocket->fBackReEnterGuard = FALSE;
 				return;
 			}
 			MyTRACE(("Err! OnSocketBackNoticeCompCB Code:" + to_string(IoResult) + " Line:" + to_string(__LINE__) + "\r\n").c_str());
 //			CloseThreadpoolIo(Io);
 			CleanupSocket(pSocket);
-			gBackReEnterGuard = FALSE;
+			pSocket->fBackReEnterGuard = FALSE;
 			return;
 		}
 
 		//切断か確認。
 		if (!NumberOfBytesTransferred)
 		{
-			MyTRACE("Socket Closed\r\n");
+			MyTRACE(("OnSocketBackNoticeCompCB SocketID:"+to_string(pSocket->ID)+ " Closed\r\n").c_str());
 //			CloseThreadpoolIo(Io);
 			CleanupSocket(pSocket);
-			gBackReEnterGuard = FALSE;
+			pSocket->fBackReEnterGuard = FALSE;
 			return;
 		}
 
@@ -357,16 +442,22 @@ namespace SevOL {
 //
 // 			StartThreadpoolIo(Io);
 			//バックからの受信準備。
-			TP_WORK* pTPWork(NULL);
-			if (!(pTPWork = CreateThreadpoolWork(RecvBackWorkCB, pSocket, &*pcbe)))
+			if (!RecvBack(pSocket))
 			{
-				DWORD Err = GetLastError();
-				cerr << "Err! OnSocketBackNoticeCompCB. CreateThreadpoolWork.Code:" << to_string(Err) << " LINE:" << __LINE__ << "\r\n";
 				CleanupSocket(pSocket);
-				gBackReEnterGuard = FALSE;
+				pSocket->fBackReEnterGuard = FALSE;
 				return;
 			}
-			SubmitThreadpoolWork(pTPWork);
+			//TP_WORK* pTPWork(NULL);
+			//if (!(pTPWork = CreateThreadpoolWork(RecvBackWorkCB, pSocket, &*pcbe)))
+			//{
+			//	DWORD Err = GetLastError();
+			//	cerr << "Err! OnSocketBackNoticeCompCB. CreateThreadpoolWork.Code:" << to_string(Err) << " LINE:" << __LINE__ << "\r\n";
+			//	CleanupSocket(pSocket);
+			//	pSocket->fBackReEnterGuard = FALSE;
+			//	return;
+			//}
+			//SubmitThreadpoolWork(pTPWork);
 		}
 		//バックから受信完了
 		else if (pSocket->DirBack == SocketContext::eDir::DIR_TO_FRONT)
@@ -376,22 +467,27 @@ namespace SevOL {
 			pSocket->ReadBackBuf.resize(NumberOfBytesTransferred) ;
 			pSocket->WriteBuf = pSocket->ReadBackBuf;
 			pSocket->ReadBackBuf.clear();
-			TP_WORK* pTPWork(NULL);
-			if (!(pTPWork = CreateThreadpoolWork(SendWorkCB, pSocket, &*pcbe)))
+			if (!SendFront(pSocket))
 			{
-				DWORD Err = GetLastError();
-				cerr << "Err! OnSocketBackNoticeCompCB.  CreateThreadpoolWork. Code:" << to_string(Err) << " LINE:" << __LINE__ << "\r\n";
-				gBackReEnterGuard = FALSE;
-				return;
+				CleanupSocket(pSocket);
+				pSocket->fBackReEnterGuard = FALSE;
 			}
-			SubmitThreadpoolWork(pTPWork);
+			//TP_WORK* pTPWork(NULL);
+			//if (!(pTPWork = CreateThreadpoolWork(SendWorkCB, pSocket, &*pcbe)))
+			//{
+			//	DWORD Err = GetLastError();
+			//	cerr << "Err! OnSocketBackNoticeCompCB.  CreateThreadpoolWork. Code:" << to_string(Err) << " LINE:" << __LINE__ << "\r\n";
+			//	pSocket->fBackReEnterGuard = FALSE;
+			//	return;
+			//}
+			//SubmitThreadpoolWork(pTPWork);
 		}
 		else {
 			int i = 0;//通常ここには来ない。
-			gBackReEnterGuard = FALSE;
+			pSocket->fBackReEnterGuard = FALSE;
 			return;
 		}
-		gBackReEnterGuard = FALSE;
+		pSocket->fBackReEnterGuard = FALSE;
 		return;
 	}
 
@@ -416,6 +512,24 @@ namespace SevOL {
 		return VOID();
 	}
 
+	BOOL SendFront(SocketContext* pSocket)
+	{
+		StartThreadpoolIo(pSocket->pTPIo);
+		pSocket->Dir = SocketContext::eDir::DIR_TO_FRONT;
+		pSocket->StrToWsa(&pSocket->WriteBuf, &pSocket->wsaWriteBuf);
+		if (WSASend(pSocket->hSocket, &pSocket->wsaWriteBuf, 1, NULL, 0, pSocket, NULL))
+		{
+			DWORD Err=WSAGetLastError();
+			if (Err!= WSA_IO_PENDING && Err!=0) {
+				cerr << "Err! SendFront. Code:" << to_string(Err) << " LINE:" << __LINE__ << "\r\n";
+				//				CloseThreadpoolIo(pSocket->pTPIo);
+				//CleanupSocket(pSocket);
+				return FALSE;
+			}
+		}
+		return TRUE;
+	}
+
 	VOID SendBackWorkCB(PTP_CALLBACK_INSTANCE Instance, PVOID Context, PTP_WORK Work)
 	{
 		CloseThreadpoolWork(Work);
@@ -436,6 +550,24 @@ namespace SevOL {
 		return VOID();
 	}
 
+	BOOL SendBack(SocketContext* pSocket)
+	{
+		StartThreadpoolIo(pSocket->pTPBackIo);
+		pSocket->DirBack = SocketContext::eDir::DIR_TO_BACK;
+		pSocket->StrToWsa(&pSocket->WriteBackBuf, &pSocket->wsaWriteBackBuf);
+		if (WSASend(pSocket->hSocketBack, &pSocket->wsaWriteBackBuf, 1, NULL, 0, &pSocket->OLBack, NULL))
+		{
+			DWORD Err=WSAGetLastError();
+			if (Err != 0 && Err !=WSA_IO_PENDING) {
+				cerr << "Err! SendBack. WSASend.Code:" << to_string(Err) << " LINE:" << __LINE__ << "\r\n";
+				//				CloseThreadpoolIo(pSocket->pTPBackIo);
+//				CleanupSocket(pSocket);
+				return FALSE;
+			}
+		}
+		return TRUE;
+	}
+
 	VOID RecvWorkCB(PTP_CALLBACK_INSTANCE Instance, PVOID Context, PTP_WORK Work)
 	{
 		CloseThreadpoolWork(Work);
@@ -450,7 +582,7 @@ namespace SevOL {
 		if (!WSARecv(pSocket->hSocket, &pSocket->wsaReadBuf, 1, NULL, &pSocket->flags, pSocket, NULL))
 		{
 			DWORD Err = WSAGetLastError();
-			if (!(Err != WSA_IO_PENDING || Err!=0))
+			if (Err != WSA_IO_PENDING && Err!=0)
 			{
 				cerr << "Err! RecvWorkCB.Code:" << to_string(Err) << " LINE:"<<__LINE__<<"\r\n";
 //				CloseThreadpoolIo(pSocket->pTPIo);
@@ -458,6 +590,26 @@ namespace SevOL {
 				return;
 			}
 		}
+	}
+
+	BOOL RecvFront(SocketContext* pSocket)
+	{
+		StartThreadpoolIo(pSocket->pTPIo);
+		pSocket->Dir = SocketContext::eDir::DIR_TO_BACK;
+		pSocket->ReadBuf.resize(BUFFER_SIZE, '\0');
+		pSocket->StrToWsa(&pSocket->ReadBuf, &pSocket->wsaReadBuf);
+		if (!WSARecv(pSocket->hSocket, &pSocket->wsaReadBuf, 1, NULL, &pSocket->flags, pSocket, NULL))
+		{
+			DWORD Err = WSAGetLastError();
+			if (Err != WSA_IO_PENDING && Err != 0)
+			{
+				cerr << "Err! RecvFront. Code:" << to_string(Err) << " LINE:" << __LINE__ << "\r\n";
+				//				CloseThreadpoolIo(pSocket->pTPIo);
+//				CleanupSocket(pSocket);
+				return FALSE;
+			}
+		}
+		return TRUE;
 	}
 
 	VOID RecvBackWorkCB(PTP_CALLBACK_INSTANCE Instance, PVOID Context, PTP_WORK Work)
@@ -482,6 +634,27 @@ namespace SevOL {
 				return;
 			}
 		}
+	}
+
+	BOOL RecvBack(SocketContext* pSocket)
+	{
+		pSocket->DirBack = SocketContext::eDir::DIR_TO_FRONT;
+		pSocket->ReadBackBuf.resize(BUFFER_SIZE, '\0');
+		pSocket->StrToWsa(&pSocket->ReadBackBuf, &pSocket->wsaReadBackBuf);
+
+		StartThreadpoolIo(pSocket->pTPBackIo);
+		if (!WSARecv(pSocket->hSocketBack, &pSocket->wsaReadBackBuf, 1, NULL, &pSocket->flags, &pSocket->OLBack, NULL))
+		{
+			DWORD Err = WSAGetLastError();
+			if (Err != WSA_IO_PENDING && Err != 0)
+			{
+				cerr << "Err! RecvBack. Code:" << to_string(Err) << " LINE:" << __LINE__ << "\r\n";
+				//				CloseThreadpoolIo(pSocket->pTPBackIo);
+//				CleanupSocket(pSocket);
+				return FALSE;
+			}
+		}
+		return TRUE;
 	}
 
 	VOID MeasureConnectedPerSecCB(PTP_CALLBACK_INSTANCE Instance, PVOID Context, PTP_TIMER Timer)
