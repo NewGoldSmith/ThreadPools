@@ -1,4 +1,4 @@
-//Copyright (c) 2021, Gold Smith
+//Copyright (c) 2022, Gold Smith
 //Released under the MIT license
 //https ://opensource.org/licenses/mit-license.php
 
@@ -192,12 +192,12 @@ namespace SevDelay {
 			//即刻終了
 			if (IoResult == ERROR_CONNECTION_ABORTED)
 			{
-				CloseThreadpoolIo(Io);
+//				CloseThreadpoolIo(Io);
 				CleanupSocket(pSocket);
 				return;
 			}
 			MyTRACE(("Err! OnSocketNoticeCompCB Code:" + to_string(IoResult) + " Line:" + to_string(__LINE__) + "\r\n").c_str());
-			CloseThreadpoolIo(Io);
+//			CloseThreadpoolIo(Io);
 			CleanupSocket(pSocket);
 			return;
 		}
@@ -206,7 +206,7 @@ namespace SevDelay {
 		if (!NumberOfBytesTransferred)
 		{
 			MyTRACE("Socket Closed\r\n");
-			CloseThreadpoolIo(Io);
+//			CloseThreadpoolIo(Io);
 			CleanupSocket(pSocket);
 			return;
 		}
@@ -246,7 +246,7 @@ namespace SevDelay {
 		}
 		else if (pSocket->Dir == SocketContext::eDir::OL_SEND)
 		{
-			MyTRACE(("Sent:" + pSocket->WriteBuf).c_str());
+			MyTRACE(("DelayEchoSev Sent:" + pSocket->WriteBuf).c_str());
 
 			//受信完了ポートスタート。
 			TP_WORK* pTPWork(NULL);
@@ -547,6 +547,9 @@ namespace SevDelay {
 
 		//デバック用ID設定
 		pAcceptSocket->ID = gID++;
+
+		//バッファー初期化
+		pListenSocket->ReadBuf.resize(BUFFER_SIZE, '\0');
 
 		//AcceptExの関数ポインタを取得し、実行。パラメーターはサンプルまんま。
 		if (!(*GetAcceptEx(pListenSocket))(pListenSocket->hSocket, pAcceptSocket->hSocket, pListenSocket->ReadBuf.data(), BUFFER_SIZE - ((sizeof(sockaddr_in) + 16) * 2), sizeof(sockaddr_in) + 16, sizeof(sockaddr_in) + 16, NULL, (OVERLAPPED*)pAcceptSocket))

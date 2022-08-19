@@ -1,4 +1,4 @@
-//Copyright (c) 2021, Gold Smith
+//Copyright (c) 2022, Gold Smith
 //Released under the MIT license
 //https ://opensource.org/licenses/mit-license.php
 
@@ -21,7 +21,7 @@
 
 namespace SevDelay {
     constexpr auto ELM_SIZE = 0x4000;   //0x4000;/*16384*/
-    constexpr auto HOST_ADDR = "127.0.0.2";
+    constexpr auto HOST_ADDR = "127.0.0.4";
     constexpr u_int HOST_PORT = 50000;
     VOID CALLBACK OnListenCompCB(
         PTP_CALLBACK_INSTANCE Instance,
@@ -75,6 +75,7 @@ namespace SevDelay {
     void ClearStatus();
     std::string SplitLastLineBreak(std::string &str);
     bool PreAccept(SocketListenContext*pListenSocket);
+#define MY_DEBUG
 #ifdef MY_DEBUG
 #define    MyTRACE(lpsz) OutputDebugStringA(lpsz);
 #else

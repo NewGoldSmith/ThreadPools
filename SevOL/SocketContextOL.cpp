@@ -1,4 +1,4 @@
-//Copyright (c) 2021, Gold Smith
+//Copyright (c) 2022, Gold Smith
 //Released under the MIT license
 //https ://opensource.org/licenses/mit-license.php
 
@@ -14,16 +14,24 @@ namespace SevOL {
 		:
 		wsaReadBuf{}
 		, wsaWriteBuf{}
+		, wsaReadBackBuf{}
+		, wsaWriteBackBuf{}
 		, hSocket(NULL)
+		, hSocketBack(NULL)
 		, ReadBuf(BUFFER_SIZE, '\0')
 		, WriteBuf(BUFFER_SIZE, '\0')
+		, ReadBackBuf(BUFFER_SIZE,'\0')
+		, WriteBackBuf(BUFFER_SIZE,'\0')
 		, RemBuf(BUFFER_SIZE, '\0')
 		, ID(0)
-		, Dir(eDir::OL_NOT_SELECTED)
-		, NumberOfBytesSent(0)
-		, NumberOfBytesRecvd(0)
+		, Dir(eDir::DIR_NOT_SELECTED)
+		, OLBack{}
 		, flags(0)
-		, pTPIo(0)
+		, flagsBack(0)
+		, pTPIo(NULL)
+		, pTPBackIo(NULL)
+		, fFrontReEnterGuard(FALSE)
+		, fBackReEnterGuard(FALSE)
 	{
 		wsaReadBuf.buf = ReadBuf.data();
 		wsaReadBuf.len = ReadBuf.length();
@@ -49,34 +57,29 @@ namespace SevOL {
 	void SocketContext::ReInitialize()
 	{
 		pTPIo = NULL;
+		pTPBackIo = NULL;
 		if (hSocket)
 		{
 			shutdown(hSocket, SD_SEND);
 			closesocket(hSocket);
 			hSocket = NULL;
 		}
+		if (hSocketBack)
+		{
+			shutdown(hSocketBack, SD_SEND);
+			closesocket(hSocketBack);
+			hSocketBack = NULL;
+		}
 		ReadBuf.clear();
-		ReadBuf.resize(BUFFER_SIZE, '\0');
-		wsaReadBuf.buf = ReadBuf.data();
-		wsaReadBuf.len = ReadBuf.length();
 		WriteBuf.clear();
-		WriteBuf.resize(BUFFER_SIZE, '\0');
-		wsaWriteBuf.buf = ReadBuf.data();
-		wsaWriteBuf.len = ReadBuf.length();
 		RemBuf.clear();
 		ID = 0;
-		Dir = eDir::OL_NOT_SELECTED;
-		NumberOfBytesSent = 0;
-		NumberOfBytesRecvd = 0;
+		Dir = eDir::DIR_NOT_SELECTED;
+		OLBack = {};
 		flags = 0;
-	}
-
-	void SocketContext::InitWsaBuf(WSABUF* pwsa, string* pstr)
-	{
-		pstr->clear();
-		pstr->resize(BUFFER_SIZE, '\0');
-		pwsa->buf = pstr->data();
-		pwsa->len = pstr->length();
+		flagsBack = 0;
+		fFrontReEnterGuard=FALSE;
+		fBackReEnterGuard=FALSE;
 	}
 
 	void SocketContext::WsaToStr(WSABUF* pwsa, string* pstr)
@@ -89,8 +92,6 @@ namespace SevOL {
 		pwsa->buf = pstr->data();
 		pwsa->len = pstr->length();
 	}
-
-
 
 	SocketListenContext::SocketListenContext()
 		:SocketContext()

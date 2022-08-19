@@ -1,4 +1,4 @@
-//Copyright (c) 2021, Gold Smith
+//Copyright (c) 2022, Gold Smith
 //Released under the MIT license
 //https ://opensource.org/licenses/mit-license.php
 
@@ -32,23 +32,30 @@ namespace SevOL {
         SocketContext();
         ~SocketContext();
         void ReInitialize();
-        void InitWsaBuf(WSABUF* pwsa, string* pstr);
         void WsaToStr(WSABUF* pwsa, string* pstr);
         void StrToWsa(string* pstr, WSABUF* pwsa);
         WSABUF wsaReadBuf;
         WSABUF wsaWriteBuf;
+        WSABUF wsaReadBackBuf;
+        WSABUF wsaWriteBackBuf;
         SOCKET hSocket;
+        SOCKET hSocketBack;
         string ReadBuf;
         string WriteBuf;
+        string ReadBackBuf;
+        string WriteBackBuf;
         string RemBuf;
         u_short ID;
-        enum eDir {OL_NOT_SELECTED=0, OL_RECV , OL_SEND
-        } ;
-        enum eDir Dir;
-        DWORD NumberOfBytesSent;
-        DWORD NumberOfBytesRecvd;
+        enum eDir { DIR_NOT_SELECTED = 0, DIR_TO_BACK, DIR_TO_FRONT };
+        eDir Dir;
+        eDir DirBack;
+        WSAOVERLAPPED OLBack;
         DWORD flags;
+        DWORD flagsBack;
         TP_IO* pTPIo;
+        TP_IO* pTPBackIo;
+        std::atomic<BOOL> fFrontReEnterGuard;
+        std::atomic<BOOL> fBackReEnterGuard;
     };
 
     class SocketListenContext
