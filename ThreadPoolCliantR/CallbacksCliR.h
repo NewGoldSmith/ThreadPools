@@ -22,7 +22,11 @@ namespace ThreadPoolCliantR {
 
 	constexpr auto ELM_SIZE = 0x4000;
 	constexpr auto NUM_THREAD = 3;
-	constexpr auto NUM_CONNECT =1000;
+	constexpr auto NUM_CONNECT =5000;
+	constexpr auto HOST_ADDR = "127.0.0.6";
+	constexpr u_short HOST_PORT = 0;
+	constexpr auto PEER_ADDR= "127.0.0.4";
+	constexpr u_short PEER_PORT = 50000;
 	//ï\é¶ó}êß
 //#define DISPLAY_SUPPRESSION
 	class SocketContext;

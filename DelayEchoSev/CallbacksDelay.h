@@ -75,7 +75,9 @@ namespace SevDelay {
     void ClearStatus();
     std::string SplitLastLineBreak(std::string &str);
     bool PreAccept(SocketListenContext*pListenSocket);
+#ifdef _DEBUG
 #define MY_DEBUG
+#endif
 #ifdef MY_DEBUG
 #define    MyTRACE(lpsz) OutputDebugStringA(lpsz);
 #else

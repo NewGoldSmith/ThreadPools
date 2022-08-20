@@ -37,7 +37,7 @@ namespace SevOL {
         PTP_IO                Io
     );
 
-    VOID CALLBACK OnSocketNoticeCompCB(
+    VOID CALLBACK OnSocketFrontNoticeCompCB(
         PTP_CALLBACK_INSTANCE Instance,
         PVOID                 Context,
         PVOID                 Overlapped,
@@ -63,36 +63,9 @@ namespace SevOL {
         PTP_IO                Io
     );
 
-    VOID CALLBACK SendWorkCB(
-        PTP_CALLBACK_INSTANCE Instance,
-        PVOID                 Context,
-        PTP_WORK              Work
-    );
-
     BOOL SendFront(SocketContext* pSocket);
-
-    VOID CALLBACK SendBackWorkCB(
-        PTP_CALLBACK_INSTANCE Instance,
-        PVOID                 Context,
-        PTP_WORK              Work
-    );
-
     BOOL SendBack(SocketContext* pSocket);
-
-    VOID CALLBACK RecvWorkCB(
-        PTP_CALLBACK_INSTANCE Instance,
-        PVOID                 Context,
-        PTP_WORK              Work
-    );
-
     BOOL RecvFront(SocketContext* pSocket);
-
-    VOID CALLBACK RecvBackWorkCB(
-        PTP_CALLBACK_INSTANCE Instance,
-        PVOID                 Context,
-        PTP_WORK              Work
-    );
-
     BOOL RecvBack(SocketContext* pSocket);
 
     VOID CALLBACK MeasureConnectedPerSecCB(

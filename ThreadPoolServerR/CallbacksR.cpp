@@ -242,14 +242,14 @@ namespace ThreadPoolServerR {
 		}
 
 		//ホストバインド設定
-		CHAR strHostAddr[] = "127.0.0.2";
-		u_short usHostPort = 50000;
+//		CHAR strHostAddr[] = "127.0.0.2";
+//		u_short usHostPort = 50000;
 		DWORD Err = 0;
 		struct sockaddr_in addr = { };
 		addr.sin_family = AF_INET;
-		addr.sin_port = htons(usHostPort);
+		addr.sin_port = htons(HOST_PORT);
 		int addr_size = sizeof(addr.sin_addr);
-		int rVal = inet_pton(AF_INET, strHostAddr, &(addr.sin_addr));
+		int rVal = inet_pton(AF_INET, HOST_ADDR, &(addr.sin_addr));
 		if (rVal != 1)
 		{
 			if (rVal == 0)
@@ -301,7 +301,7 @@ namespace ThreadPoolServerR {
 			return false;
 		}
 		SetThreadpoolWait(gpListenSocket->ptpwaitOnEvListen, gpListenSocket->hEvent, NULL);
-		std::cout << "Listen Start\r\n";
+		std::cout << "Listen Start\r\n"<<HOST_ADDR<<":"<<to_string(HOST_PORT)<<"\r\n";
 
 		//リッスン
 		if (listen(gpListenSocket->hSocket, SOMAXCONN))
@@ -339,6 +339,7 @@ namespace ThreadPoolServerR {
 		std::cout << "Current Connected: " << gID - gCDel - 1 << "\r\n";
 		std::cout << "Max Connecting: " << gMaxConnecting << "\r\n" ;
 		std::cout << "Max Accepted/Sec: " << gAcceptedPerSec << "\r\n";
+		std::cout << "Host: "<< HOST_ADDR<<":"<<to_string(HOST_PORT)<<"\r\n";
 	}
 
 	void ClearStatus()

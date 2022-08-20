@@ -32,7 +32,6 @@ namespace SevDelay {
         SocketContext();
         ~SocketContext();
         void ReInitialize();
-        void InitWsaBuf(WSABUF* pwsa, string* pstr);
         void WsaToStr(WSABUF* pwsa, string* pstr);
         void StrToWsa(string* pstr, WSABUF* pwsa);
         WSABUF wsaReadBuf;
@@ -45,10 +44,10 @@ namespace SevDelay {
         enum eDir {OL_NOT_SELECTED=0, OL_RECV , OL_SEND
         } ;
         enum eDir Dir;
-        DWORD NumberOfBytesSent;
-        DWORD NumberOfBytesRecvd;
+        BOOL fReEnterGuard;
         DWORD flags;
         TP_IO* pTPIo;
+        TP_TIMER* pTPTimer;
     };
 
     class SocketListenContext

@@ -54,8 +54,8 @@ namespace SevOL {
         DWORD flagsBack;
         TP_IO* pTPIo;
         TP_IO* pTPBackIo;
-        std::atomic<BOOL> fFrontReEnterGuard;
-        std::atomic<BOOL> fBackReEnterGuard;
+        BOOL fFrontReEnterGuard;
+        BOOL fBackReEnterGuard;
     };
 
     class SocketListenContext

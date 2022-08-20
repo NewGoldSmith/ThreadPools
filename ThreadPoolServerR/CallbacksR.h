@@ -21,6 +21,8 @@
 namespace ThreadPoolServerR {
 
     constexpr auto ELM_SIZE = 0x4000;
+    constexpr auto HOST_ADDR= "127.0.0.2";
+    constexpr u_short HOST_PORT = 50000;
 
     VOID OnEvListenCB(
         PTP_CALLBACK_INSTANCE Instance, 

@@ -200,6 +200,8 @@ namespace ThreadPoolCliantR {
 		std::cout << "Min Responce msec:" << std::to_string(gtMinRepTime
 		) << "\r\n";
 		std::cout << "Max Responce msec:" << gtMaxRepTime.load() << "\r\n";
+		cout << "Target Address: " << PEER_ADDR<<":"<<to_string(PEER_PORT)<<"\r\n";
+		cout << "Host Address: " << HOST_ADDR << ":" << to_string(HOST_PORT) << "\r\n";
 	}
 
 	void ClearStatus()
@@ -290,7 +292,6 @@ namespace ThreadPoolCliantR {
 		using namespace ThreadPoolCliantR;
 		for (u_int i = 0; i < (u_int)Context; ++i)
 		{
-//			std::atomic_uint index(gID++);
 			SocketContext* pSocket = gSocketsPool.Pop();
 			pSocket->ID = gID++;
 
@@ -305,14 +306,12 @@ namespace ThreadPoolCliantR {
 			}
 
 			//ホストバインド設定
-			CHAR strHostAddr[] = "127.0.0.3";
-			u_short usHostPort = 0;
 			DWORD Err = 0;
 			struct sockaddr_in addr = { };
 			addr.sin_family = AF_INET;
-			addr.sin_port = htons(usHostPort);
+			addr.sin_port = htons(HOST_PORT);
 			int addr_size = sizeof(addr.sin_addr);
-			int rVal = inet_pton(AF_INET, strHostAddr, &(addr.sin_addr));
+			int rVal = inet_pton(AF_INET, HOST_ADDR, &(addr.sin_addr));
 			if (rVal != 1)
 			{
 				if (rVal == 0)
@@ -344,13 +343,11 @@ namespace ThreadPoolCliantR {
 			}
 
 			//サーバー接続用のadd_inを設定
-			CHAR strPeerAddr[] = "127.0.0.2";
-			u_short usPeerPort = 50000;
 			struct sockaddr_in Peeraddr = { };
 			Peeraddr.sin_family = AF_INET;
-			Peeraddr.sin_port = htons(usPeerPort);
+			Peeraddr.sin_port = htons(PEER_PORT);
 			int Peeraddr_size = sizeof(Peeraddr.sin_addr);
-			rVal = inet_pton(AF_INET, strPeerAddr, &(Peeraddr.sin_addr));
+			rVal = inet_pton(AF_INET, PEER_ADDR, &(Peeraddr.sin_addr));
 			if (rVal != 1)
 			{
 				if (rVal == 0)

@@ -103,12 +103,7 @@ namespace SevDelay {
 		//エラー確認
 		if (IoResult)
 		{
-			//アプリケーションにより終了
-			if (IoResult == ERROR_OPERATION_ABORTED)
-			{
-				return;
-			}
-			MyTRACE(("Err! OnListenCompCB Result:" + to_string(IoResult) + " Line:" + to_string(__LINE__) + "\r\n").c_str());
+			MyTRACE(("Err! DelayEchoSev OnListenCompCB IoResult:" + to_string(IoResult) + " Line:" + to_string(__LINE__) + "\r\n").c_str());
 			cout << "End Listen\r\n";
 			return;
 		}
@@ -117,6 +112,7 @@ namespace SevDelay {
 
 		if (!NumberOfBytesTransferred)
 		{
+			MyTRACE(("DelayEchoSev OnListenCompCB SocketID:" + to_string(pSocket->ID) + " Closed.\r\n").c_str());
 			CleanupSocket(pSocket);
 			//次のアクセプト
 			if (!PreAccept(pListenSocket))
@@ -138,18 +134,18 @@ namespace SevDelay {
 			CleanupSocket(pSocket);
 			return;
 		}
-		StartThreadpoolIo(pSocket->pTPIo);
-		
 
 		//読み取りデータをアクセプトソケットに移す。
 		pSocket->RemBuf = pListenSocket->ReadBuf;
+
+		//次のリッスン完了ポートスタート
 		StartThreadpoolIo(Io);
-		//次のアクセプト
 		if (!PreAccept(pListenSocket))
 		{
 			cerr << "Err! OnListenCompCB. PreAccept.LINE:" << __LINE__ << "\r\n";
 			return;
 		}
+
 		//改行で分ける。
 		pSocket->WriteBuf = SplitLastLineBreak(pSocket->RemBuf);
 		//送信できるものがあれば送信
@@ -178,36 +174,36 @@ namespace SevDelay {
 			}
 			SubmitThreadpoolWork(pTPWork);
 		}
-
 		return;
 	}
 
 	VOID OnSocketNoticeCompCB(PTP_CALLBACK_INSTANCE Instance, PVOID Context, PVOID Overlapped, ULONG IoResult, ULONG_PTR NumberOfBytesTransferred, PTP_IO Io)
 	{
+//		MyTRACE("Enter OnSocketNoticeCompCB\r\n");
 		SocketContext* pSocket = (SocketContext*)Context;
+		if (pSocket->fReEnterGuard)
+		{
+			StartThreadpoolIo(Io);
+			MyTRACE("ReEnter OnSocketNoticeCompCB\r\n");
+			return;
+		}
+		pSocket->fReEnterGuard = TRUE;
 
 		//エラー確認
 		if (IoResult)
 		{
-			//即刻終了
-			if (IoResult == ERROR_CONNECTION_ABORTED)
-			{
-//				CloseThreadpoolIo(Io);
-				CleanupSocket(pSocket);
-				return;
-			}
-			MyTRACE(("Err! OnSocketNoticeCompCB Code:" + to_string(IoResult) + " Line:" + to_string(__LINE__) + "\r\n").c_str());
-//			CloseThreadpoolIo(Io);
+			MyTRACE(("Err! DelayEchoSev OnSocketNoticeCompCB. Code:" + to_string(IoResult) + " Line:" + to_string(__LINE__) + " SocketID:" + to_string(pSocket->ID) + "\r\n").c_str());
 			CleanupSocket(pSocket);
+			pSocket->fReEnterGuard = FALSE;
 			return;
 		}
 
 		//切断か確認。
 		if (!NumberOfBytesTransferred)
 		{
-			MyTRACE("Socket Closed\r\n");
-//			CloseThreadpoolIo(Io);
+			MyTRACE(("DelayEchoSev Socket ID:" + to_string(pSocket->ID) + " Closed\r\n").c_str());
 			CleanupSocket(pSocket);
+			pSocket->fReEnterGuard = FALSE;
 			return;
 		}
 
@@ -226,11 +222,25 @@ namespace SevDelay {
 				TP_TIMER* pTPTimer(NULL);
 				if (!(pTPTimer = CreateThreadpoolTimer(DelaySendTimerCB, pSocket, &*pcbe)))
 				{
-					std::cerr << "err:CreateThreadpoolTimer. Code:" << to_string(WSAGetLastError()) << " LINE:" << __LINE__ << "\r\n";
+					std::cerr << "err:DelayEchoSev CreateThreadpoolTimer. Code:" << to_string(WSAGetLastError()) << " LINE:" << __LINE__ << "\r\n";
 					CleanupSocket(pSocket);
+					pSocket->fReEnterGuard = FALSE;
 					return;
 				}
 				SetThreadpoolTimer(pTPTimer, &*gp100msecFT, 0, 0);
+
+				//更に受信体制にする。
+				TP_WORK* pTPWork(NULL);
+				if (!(pTPWork = CreateThreadpoolWork(RecvWorkCB, pSocket, &*pcbe)))
+				{
+					DWORD Err = GetLastError();
+					cerr << "Err! DelayEchoSev OnSocketNoticeCompCB CreateThreadpoolWork.Code:" << to_string(Err) << " LINE:" << __LINE__ << "\r\n";
+					CleanupSocket(pSocket);
+					pSocket->fReEnterGuard = FALSE;
+					return;
+				}
+				SubmitThreadpoolWork(pTPWork);
+
 			}
 			else{
 				//WriteBufに中身がない場合送信はしない。受信完了ポートスタート。
@@ -238,56 +248,73 @@ namespace SevDelay {
 				if (!(pTPWork = CreateThreadpoolWork(RecvWorkCB, pSocket, &*pcbe)))
 				{
 					DWORD Err = GetLastError();
-					cerr << "Err! OnSocketNoticeCompCB CreateThreadpoolWork.Code:" << to_string(Err) << " LINE:" << __LINE__ << "\r\n";
+					cerr << "Err! DelayEchoSev OnSocketNoticeCompCB CreateThreadpoolWork.Code:" << to_string(Err) << " LINE:" << __LINE__ << "\r\n";
+					CleanupSocket(pSocket);
+					pSocket->fReEnterGuard = FALSE;
+					return;
 				}
 				SubmitThreadpoolWork(pTPWork);
 			}
-			return;
 		}
+		//送信完了の場合
 		else if (pSocket->Dir == SocketContext::eDir::OL_SEND)
 		{
 			MyTRACE(("DelayEchoSev Sent:" + pSocket->WriteBuf).c_str());
-
-			//受信完了ポートスタート。
+			pSocket->WriteBuf.clear();
+			//受信体制
 			TP_WORK* pTPWork(NULL);
 			if (!(pTPWork = CreateThreadpoolWork(RecvWorkCB, pSocket, &*pcbe)))
 			{
 				DWORD Err = GetLastError();
-				cerr << "Err! OnSocketNoticeCompCB CreateThreadpoolWork.Code:" << to_string(Err) << " LINE:" << __LINE__ << "\r\n";
+				cerr << "Err! DelayEchoSev OnSocketNoticeCompCB CreateThreadpoolWork.Code:" << to_string(Err) << " LINE:" << __LINE__ << "\r\n";
+				CleanupSocket(pSocket);
+				pSocket->fReEnterGuard = FALSE;
+				return;
 			}
 			SubmitThreadpoolWork(pTPWork);
 		}
 		else {
 			int i = 0;//通常ここには来ない。
 		}
+		pSocket->fReEnterGuard = FALSE;
 		return;
 	}
+
 
 	VOID SendWorkCB(PTP_CALLBACK_INSTANCE Instance, PVOID Context, PTP_WORK Work)
 	{
 		CloseThreadpoolWork(Work);
 		SocketContext* pSocket = (SocketContext*)Context;
-		StartThreadpoolIo(pSocket->pTPIo);
+		if (pSocket->pTPIo)
+		{
+			StartThreadpoolIo(pSocket->pTPIo);
+		}
+		else {
+			cout << "Err!pSocket is empty.\r\n";
+		}
 		pSocket->Dir = SocketContext::eDir::OL_SEND;
 		pSocket->StrToWsa(&pSocket->WriteBuf, &pSocket->wsaWriteBuf);
 		if (WSASend(pSocket->hSocket, &pSocket->wsaWriteBuf, 1, NULL, 0, pSocket, NULL))
 		{
-			DWORD Err(NULL);
-			if ((Err = WSAGetLastError()) != WSA_IO_PENDING) {
+			DWORD Err= WSAGetLastError();
+			if (Err != WSA_IO_PENDING && Err) {
 				cerr << "Err! WSASend.Code:" << to_string(Err) << " LINE:" << __LINE__ << "\r\n";
-				CloseThreadpoolIo(pSocket->pTPIo);
+//				CancelThreadpoolIo(pSocket->pTPIo);
 				CleanupSocket(pSocket);
 				return;
 			}
 		}
-
-		return VOID();
+		return;
 	}
 
 	VOID RecvWorkCB(PTP_CALLBACK_INSTANCE Instance, PVOID Context, PTP_WORK Work)
 	{
 		CloseThreadpoolWork(Work);
 		SocketContext* pSocket = (SocketContext*)Context;
+		if (!pSocket->hSocket)
+		{
+			return;
+		}
 		//受信体制を取る。
 
 		pSocket->Dir = SocketContext::eDir::OL_RECV;
@@ -298,33 +325,30 @@ namespace SevDelay {
 		if (!WSARecv(pSocket->hSocket, &pSocket->wsaReadBuf, 1, NULL, &pSocket->flags, pSocket, NULL))
 		{
 			DWORD Err = WSAGetLastError();
-			if (!(Err != WSA_IO_PENDING || Err!=0))
+			if (Err != WSA_IO_PENDING && Err)
 			{
 				cerr << "Err! RecvWorkCB.Code:" << to_string(Err) << " LINE:"<<__LINE__<<"\r\n";
-				CloseThreadpoolIo(pSocket->pTPIo);
+				//CancelThreadpoolIo(pSocket->pTPIo);
 				CleanupSocket(pSocket);
 				return;
 			}
 		}
 	}
+
 	VOID DelaySendTimerCB(PTP_CALLBACK_INSTANCE Instance, PVOID Context, PTP_TIMER Timer)
 	{
 		CloseThreadpoolTimer(Timer);
+		TP_WORK* pTPWork(NULL);
 		SocketContext* pSocket = (SocketContext*)Context;
-		StartThreadpoolIo(pSocket->pTPIo);
-		pSocket->Dir = SocketContext::eDir::OL_SEND;
-		pSocket->StrToWsa(&pSocket->WriteBuf, &pSocket->wsaWriteBuf);
-		if (WSASend(pSocket->hSocket, &pSocket->wsaWriteBuf, 1, NULL, 0, pSocket, NULL))
+		if (!(pTPWork = CreateThreadpoolWork(SendWorkCB, pSocket, &*pcbe)))
 		{
-			DWORD Err(NULL);
-			if ((Err = WSAGetLastError()) != WSA_IO_PENDING) {
-				cerr << "Err! WSASend.Code:" << to_string(Err) << " LINE:" << __LINE__ << "\r\n";
-				CloseThreadpoolIo(pSocket->pTPIo);
-				CleanupSocket(pSocket);
-				return;
-			}
+			DWORD Err = GetLastError();
+			cerr << "Err! DelayEchoSev DelaySendTimerCB CreateThreadpoolWork.Code:" << to_string(Err) << " LINE:" << __LINE__ << "\r\n";
+			CleanupSocket(pSocket);
+			return;
 		}
-		return VOID();
+		SubmitThreadpoolWork(pTPWork);
+		return;
 	}
 
 	VOID MeasureConnectedPerSecCB(PTP_CALLBACK_INSTANCE Instance, PVOID Context, PTP_TIMER Timer)
@@ -342,13 +366,30 @@ namespace SevDelay {
 
 	void CleanupSocket(SocketContext* pSocket)
 	{
+		static std::binary_semaphore sem(1);
+		sem.acquire();
+		if (pSocket->pTPTimer)
+		{
+			WaitForThreadpoolTimerCallbacks(pSocket->pTPTimer, FALSE);
+			pSocket->pTPTimer = NULL;
+		}
+		//タイミングによって、何回も呼ばれる。
+		if (pSocket->hSocket)
+		{
+			MyTRACE(("CleanupSocket SocketID:" + to_string(pSocket->ID) + "\r\n").c_str());
+			++gCDel;
+		}
+		else {
+			sem.release();
+			return;
+		}
 		pSocket->ReInitialize();
 		gSocketsPool.Push(pSocket);
-		++gCDel;
-		if (!(gTotalConnected - gCDel))
+		if (!(gTotalConnected.load() - gCDel.load()))
 		{
 			ShowStatus();
 		}
+		sem.release();
 	}
 
 
@@ -373,13 +414,10 @@ namespace SevDelay {
 		BOOL yes = 1;
 		if (setsockopt(pListenContext->hSocket, SOL_SOCKET, SO_REUSEADDR, (const char*)&yes, sizeof(yes)))
 		{
-			++gCDel;
 			std::cerr << "setsockopt Error! Line:" << __LINE__ << "\r\n";
 		}
 
 		//ホストバインド設定
-//		CHAR strHostAddr[] =  HostAddr;
-//		u_short usHostPort = 50000;
 		DWORD Err = 0;
 		struct sockaddr_in addr = { };
 		addr.sin_family = AF_INET;

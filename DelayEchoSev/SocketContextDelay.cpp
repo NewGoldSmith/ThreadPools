@@ -20,15 +20,10 @@ namespace SevDelay {
 		, RemBuf(BUFFER_SIZE, '\0')
 		, ID(0)
 		, Dir(eDir::OL_NOT_SELECTED)
-		, NumberOfBytesSent(0)
-		, NumberOfBytesRecvd(0)
 		, flags(0)
-		, pTPIo(0)
+		, pTPIo(NULL)
+		, pTPTimer(NULL)
 	{
-		wsaReadBuf.buf = ReadBuf.data();
-		wsaReadBuf.len = ReadBuf.length();
-		wsaWriteBuf.buf = WriteBuf.data();
-		wsaWriteBuf.len = WriteBuf.length();
 		RemBuf.clear();
 		hEvent = WSACreateEvent();
 	};
@@ -48,7 +43,6 @@ namespace SevDelay {
 	}
 	void SocketContext::ReInitialize()
 	{
-		pTPIo = NULL;
 		if (hSocket)
 		{
 			shutdown(hSocket, SD_SEND);
@@ -56,27 +50,14 @@ namespace SevDelay {
 			hSocket = NULL;
 		}
 		ReadBuf.clear();
-		ReadBuf.resize(BUFFER_SIZE, '\0');
-		wsaReadBuf.buf = ReadBuf.data();
-		wsaReadBuf.len = ReadBuf.length();
 		WriteBuf.clear();
-		WriteBuf.resize(BUFFER_SIZE, '\0');
-		wsaWriteBuf.buf = ReadBuf.data();
-		wsaWriteBuf.len = ReadBuf.length();
 		RemBuf.clear();
 		ID = 0;
 		Dir = eDir::OL_NOT_SELECTED;
-		NumberOfBytesSent = 0;
-		NumberOfBytesRecvd = 0;
 		flags = 0;
-	}
-
-	void SocketContext::InitWsaBuf(WSABUF* pwsa, string* pstr)
-	{
-		pstr->clear();
-		pstr->resize(BUFFER_SIZE, '\0');
-		pwsa->buf = pstr->data();
-		pwsa->len = pstr->length();
+		fReEnterGuard = FALSE;
+		pTPIo = NULL;
+		pTPTimer = NULL;
 	}
 
 	void SocketContext::WsaToStr(WSABUF* pwsa, string* pstr)
