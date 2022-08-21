@@ -125,6 +125,10 @@ int main()
 				{
 					ClearStatus();
 				}
+				else if (strin == "cls")
+				{
+					Cls();
+				}
 			}
 		}
 	}

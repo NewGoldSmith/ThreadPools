@@ -12,6 +12,8 @@ namespace ThreadPoolCliantR {
 	std::atomic_uint gID{};
 	std::atomic<ULONGLONG> gtMinRepTime{ ULLONG_MAX };
 	std::atomic<ULONGLONG> gtMaxRepTime{};
+	FILETIME gJobStartTime{};
+	FILETIME gJobEndTime{};
 	SocketContext gSockets[ELM_SIZE];
 	RingBuf<SocketContext> gSocketsPool(gSockets, ELM_SIZE);
 	const std::unique_ptr
@@ -114,15 +116,18 @@ namespace ThreadPoolCliantR {
 					if (uiCount == 0)
 					{
 						CloseThreadpoolWait(Wait);
-						gtMaxRepTime.store(__max(gtMaxRepTime.load(), pSocket->GetMaxResponce()));
+						//ジョブの終わり時間計測
+						GetSystemTimeAsFileTime(&gJobEndTime);						gtMaxRepTime.store(__max(gtMaxRepTime.load(), pSocket->GetMaxResponce()));
 						gtMinRepTime.store(__min(gtMinRepTime.load(), pSocket->GetMinResponce()));
 
 						pSocket->ReInitialize();
 						gSocketsPool.Push(pSocket);
+
 						++gCDel;
 						if (!(gID - gCDel))
 						{
-							Sleep(1000);
+
+							Sleep(2000);
 							std::cout << "End Work" << "\r\n" << std::flush;
 
 							//ステータスを表示
@@ -179,9 +184,13 @@ namespace ThreadPoolCliantR {
 	int TryConnect()
 	{
 		using namespace ThreadPoolCliantR;
+		//Jobタイム開始時間測定
+		GetSystemTimeAsFileTime(&gJobStartTime);
+
 		PTP_WORK ptpwork(NULL);
 		for (int i = 0; i < NUM_THREAD; ++i)
 		{
+
 			if (!(ptpwork = CreateThreadpoolWork(TryConnectCB, (PVOID)NUM_CONNECT, &*pcbe)))
 			{
 				std::cerr << "TryConnect Error.Line:" + __LINE__ << "\r\n";
@@ -202,6 +211,8 @@ namespace ThreadPoolCliantR {
 		std::cout << "Max Responce msec:" << gtMaxRepTime.load() << "\r\n";
 		cout << "Target Address: " << PEER_ADDR<<":"<<to_string(PEER_PORT)<<"\r\n";
 		cout << "Host Address: " << HOST_ADDR << ":" << to_string(HOST_PORT) << "\r\n";
+		cout << "Job Time:" << to_string(GetDeffSec(gJobEndTime, gJobStartTime)) << "."<<to_string(GetDeffmSec(gJobEndTime,gJobStartTime))<<"\r\n";
+		cout << "\r\n";
 	}
 
 	void ClearStatus()
@@ -211,8 +222,16 @@ namespace ThreadPoolCliantR {
 		gCDel = 0;
 		gtMinRepTime = LLONG_MAX;
 		gtMaxRepTime = 0;
+		gJobStartTime = {};
+		gJobEndTime = {};
 		cout << "\r\n";
 		ShowStatus();
+	}
+
+	void Cls()
+	{
+		cout << "\0x1b[2J";
+		cout << "\0x1b[0;0H";
 	}
 
 	void StartTimer(SocketContext* pSocket)
@@ -237,6 +256,38 @@ namespace ThreadPoolCliantR {
 			return;
 		}
 		SetThreadpoolTimer(pTPTimer, &*p1000msecFT, 0, NULL);
+	}
+
+	u_int GetDeffSec(const FILETIME& end, const FILETIME& start)
+	{
+		ULONGLONG t64start = (((ULONGLONG)start.dwHighDateTime) << 32) + start.dwLowDateTime;
+		ULONGLONG t64end = (((ULONGLONG)end.dwHighDateTime) << 32) + end.dwLowDateTime;
+
+		ULONGLONG Sec(0);
+		if (t64start > t64end)
+		{
+			int i = 0;
+		}
+		else {
+			Sec = (t64end - t64start) / 10000.0 / 1000;
+		}
+		return Sec;
+	}
+
+	u_int GetDeffmSec(const FILETIME& end, const FILETIME& start)
+	{
+		ULONGLONG t64start = (((ULONGLONG)start.dwHighDateTime) << 32) + start.dwLowDateTime;
+		ULONGLONG t64end = (((ULONGLONG)end.dwHighDateTime) << 32) + end.dwLowDateTime;
+
+		ULONGLONG mSec(0);
+		if (t64start > t64end)
+		{
+			int i = 0;
+		}
+		else {
+			mSec = (ULONGLONG)((t64end - t64start) / 10000.0) % 1000;
+		}
+		return mSec;
 	}
 
 	FILETIME* Make1000mSecFileTime(FILETIME*pfiletime)

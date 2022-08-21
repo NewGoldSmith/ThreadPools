@@ -14,15 +14,16 @@
 #include <semaphore>
 #include <exception>
 #include <algorithm>
-#include "MainDelayEchoSev.h"
-#include "SocketContextDelay.h"
+#include "MainEchoOLSev.h"
+#include "SocketContextEchoOL.h"
 //#include <sal.h>
 #include "RingBuf.h"
 
-namespace SevDelay {
+namespace EchoOLSev {
     constexpr auto ELM_SIZE = 0x4000;   //0x4000;/*16384*/
     constexpr auto HOST_ADDR = "127.0.0.2";
     constexpr u_int HOST_PORT = 50000;
+
     VOID CALLBACK OnListenCompCB(
         PTP_CALLBACK_INSTANCE Instance,
         PVOID                 Context,
@@ -32,7 +33,7 @@ namespace SevDelay {
         PTP_IO                Io
     );
 
-    VOID CALLBACK OnSocketNoticeCompCB(
+    VOID CALLBACK OnSocketFrontNoticeCompCB(
         PTP_CALLBACK_INSTANCE Instance,
         PVOID                 Context,
         PVOID                 Overlapped,
@@ -42,29 +43,25 @@ namespace SevDelay {
     );
 
     VOID CALLBACK SendWorkCB(
-        _Inout_     PTP_CALLBACK_INSTANCE Instance,
-        _Inout_opt_ PVOID                 Context,
-        _Inout_     PTP_WORK              Work
+        PTP_CALLBACK_INSTANCE Instance,
+        PVOID                 Context,
+        PTP_WORK              Work
     );
 
     VOID CALLBACK RecvWorkCB(
-        _Inout_     PTP_CALLBACK_INSTANCE Instance,
-        _Inout_opt_ PVOID                 Context,
-        _Inout_     PTP_WORK              Work
-    );
-
-    VOID CALLBACK DelaySendTimerCB(
         PTP_CALLBACK_INSTANCE Instance,
         PVOID                 Context,
-        PTP_TIMER             Timer
+        PTP_WORK              Work
     );
 
+    BOOL SendFront(SocketContext* pSocket);
+    BOOL RecvFront(SocketContext* pSocket);
+ 
     VOID CALLBACK MeasureConnectedPerSecCB(
         PTP_CALLBACK_INSTANCE Instance,
         PVOID                 Context,
         PTP_TIMER             Timer
     );
-
 
     void CleanupSocket(SocketContext* pSocket);
     int StartListen(SocketListenContext*);
@@ -73,12 +70,10 @@ namespace SevDelay {
     void EndListen(SocketListenContext*pListen);
     void ShowStatus();
     void ClearStatus();
+    void Cls();
     std::string SplitLastLineBreak(std::string &str);
     bool PreAccept(SocketListenContext*pListenSocket);
 #ifdef _DEBUG
-#define MY_DEBUG
-#endif
-#ifdef MY_DEBUG
 #define    MyTRACE(lpsz) OutputDebugStringA(lpsz);
 #else
 #define MyTRACE __noop
