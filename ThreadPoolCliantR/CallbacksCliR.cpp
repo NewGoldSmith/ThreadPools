@@ -1,4 +1,4 @@
-//Copyright (c) 2021, Gold Smith
+//Copyright (c) 2022, Gold Smith
 //Released under the MIT license
 //https ://opensource.org/licenses/mit-license.php
 
@@ -16,19 +16,23 @@ namespace ThreadPoolCliantR {
 	FILETIME gJobEndTime{};
 	SocketContext gSockets[ELM_SIZE];
 	RingBuf<SocketContext> gSocketsPool(gSockets, ELM_SIZE);
+
 	const std::unique_ptr
 		< FILETIME
 		, void (*)(FILETIME*)
-		> p1000msecFT
+		> gp1000msecFT
 	{ []()
 		{
-			const auto p1000msecFT = new FILETIME;
-			Make1000mSecFileTime(p1000msecFT);
-			return p1000msecFT;
+			const auto gp1000msecFT = new FILETIME;
+			ULARGE_INTEGER ulDueTime;
+			ulDueTime.QuadPart = (ULONGLONG)-(1 * 10 * 1000 * 1000);
+			gp1000msecFT->dwHighDateTime = ulDueTime.HighPart;
+			gp1000msecFT->dwLowDateTime = ulDueTime.LowPart;
+			return gp1000msecFT;
 		}()
-	,[](_Inout_ FILETIME* p1000msecFT)
+	,[](_Inout_ FILETIME* gp1000msecFT)
 		{
-				delete p1000msecFT;
+			delete gp1000msecFT;
 		}
 	};
 
@@ -53,6 +57,43 @@ namespace ThreadPoolCliantR {
 		}
 	};
 
+	const std::unique_ptr
+		< DWORD
+		, void (*)(DWORD*)
+		> gpOldConsoleMode
+	{ []()
+		{
+			const auto gpOldConsoleMode = new DWORD;
+			HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
+			if (!GetConsoleMode(hOut, gpOldConsoleMode))
+			{
+				cerr << "Err!GetConsoleMode" << " LINE:" << to_string(__LINE__) << "\r\n";
+			}
+			DWORD ConModeOut =
+				0
+				| ENABLE_PROCESSED_OUTPUT
+				| ENABLE_WRAP_AT_EOL_OUTPUT
+				| ENABLE_VIRTUAL_TERMINAL_PROCESSING
+				//		|DISABLE_NEWLINE_AUTO_RETURN       
+				//		|ENABLE_LVB_GRID_WORLDWIDE
+				;
+			if (!SetConsoleMode(hOut, ConModeOut))
+			{
+				cerr << "Err!SetConsoleMode" << " LINE:" << to_string(__LINE__) << "\r\n";
+			}
+			return gpOldConsoleMode;
+		}()
+	,[](_Inout_ DWORD* gpOldConsoleMode)
+		{
+			HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
+			if (!SetConsoleMode(hOut, *gpOldConsoleMode))
+			{
+				cerr << "Err!SetConsoleMode" << " LINE:" << to_string(__LINE__) << "\r\n";
+			}
+			delete gpOldConsoleMode;
+		}
+	};
+
 	VOID OnEvSocketCB(PTP_CALLBACK_INSTANCE Instance, PVOID Context, PTP_WAIT Wait, TP_WAIT_RESULT WaitResult)
 	{
 		WSANETWORKEVENTS NetworkEvents{};
@@ -73,9 +114,10 @@ namespace ThreadPoolCliantR {
 		{
 			//レシーブ
 			pSocket->ReadString.resize(BUFFER_SIZE, '\0');
-			pSocket->ReadString.resize(recv(pSocket->hSocket, pSocket->ReadString.data(), pSocket->ReadString.size(), 0));
 
-			if (pSocket->ReadString.size() == SOCKET_ERROR)
+			int size=recv(pSocket->hSocket, pSocket->ReadString.data(), pSocket->ReadString.size(), 0);
+
+			if (size == SOCKET_ERROR)
 			{
 				pSocket->ReadString.clear();
 				Err = WSAGetLastError();
@@ -85,7 +127,7 @@ namespace ThreadPoolCliantR {
 				CloseThreadpoolWait(Wait);
 				return;
 			}
-			else if (pSocket->ReadString.size() == 0)
+			else if (size == 0)
 			{
 				CloseThreadpoolWait(Wait);
 				pSocket->ReInitialize();
@@ -94,6 +136,7 @@ namespace ThreadPoolCliantR {
 			}
 			else {
 				//受信成功
+				pSocket->ReadString.resize(size);
 				pSocket->RemString += pSocket->ReadString;
 				pSocket->DispString = SplitLastLineBreak(pSocket->RemString);
 				pSocket->DispString += "\r\n";
@@ -109,7 +152,7 @@ namespace ThreadPoolCliantR {
 				}
 #endif
 				//レスポンス測定用。
-				u_int uiCount=FindAndConfirmCountDownNumber(pSocket->DispString);
+				u_int uiCount=pSocket->FindAndConfirmCountDownNumber(pSocket->DispString);
 				//見つけたカウントが範囲内か確認。
 				if (0 <= uiCount && uiCount <= N_COUNTDOWNS) {
 					GetSystemTimeAsFileTime(&pSocket->tRecv[N_COUNTDOWNS - uiCount]);
@@ -230,8 +273,8 @@ namespace ThreadPoolCliantR {
 
 	void Cls()
 	{
-		cout << "\0x1b[2J";
-		cout << "\0x1b[0;0H";
+		cout << "\x1b[2J";
+		cout << "\x1b[0;0H";
 	}
 
 	void StartTimer(SocketContext* pSocket)
@@ -255,7 +298,7 @@ namespace ThreadPoolCliantR {
 			gSocketsPool.Push(pSocket);
 			return;
 		}
-		SetThreadpoolTimer(pTPTimer, &*p1000msecFT, 0, NULL);
+		SetThreadpoolTimer(pTPTimer, &*gp1000msecFT, 0, NULL);
 	}
 
 	u_int GetDeffSec(const FILETIME& end, const FILETIME& start)
@@ -290,15 +333,6 @@ namespace ThreadPoolCliantR {
 		return mSec;
 	}
 
-	FILETIME* Make1000mSecFileTime(FILETIME*pfiletime)
-	{
-		ULARGE_INTEGER ulDueTime;
-		ulDueTime.QuadPart = (ULONGLONG)-(1 * 10 * 1000 * 1000);
-		pfiletime->dwHighDateTime = ulDueTime.HighPart;
-		pfiletime->dwLowDateTime = ulDueTime.LowPart;
-		return pfiletime;
-	}
-
 	VOID OneSecTimerCB(PTP_CALLBACK_INSTANCE Instance, PVOID Context, PTP_TIMER pTPTimer)
 	{
 		SocketContext* pSocket = (SocketContext*)Context;
@@ -316,7 +350,7 @@ namespace ThreadPoolCliantR {
 			//レスポンス測定用。
 			GetSystemTimeAsFileTime(&pSocket->tSend[N_COUNTDOWNS - pSocket->CountDown]);
 
-			SetThreadpoolTimer(pTPTimer, &*p1000msecFT, 0, 0);
+			SetThreadpoolTimer(pTPTimer, &*gp1000msecFT, 0, 0);
 		}
 		else {
 			//スレッドプールタイマー終了
@@ -478,21 +512,20 @@ namespace ThreadPoolCliantR {
 		return true;
 	}
 
-	u_int FindAndConfirmCountDownNumber(const std::string& str)
-	{
-		std::string s(str);
-		size_t it2=s.rfind("\r\n");
-		size_t it1 = s.rfind(":", it2);
-		std::string substr = s.substr(it1+1, it2-it1-1);
-		u_int uc(0);
-		try {
-			uc=std::stoi(substr);
-		}
-		catch (const std::invalid_argument& e) {
-			std::cerr << "Err! FindAndConfirmCountDownNumber. "<<e.what() << " File:" << __FILE__ << " LINE:" << __LINE__ << "\r\n";
-			std::abort();
-		}
-		return uc;
-	}
+	//u_int FindAndConfirmCountDownNumber(const std::string& str)
+	//{
+	//	std::string s(str);
+	//	size_t it2=s.rfind("\r\n");
+	//	size_t it1 = s.rfind(":", it2);
+	//	std::string substr = s.substr(it1+1, it2-it1-1);
+	//	u_int uc(0);
+	//	//try {
+	//		uc = std::stoi(substr);
+	//	//}
+	//	//catch (const std::invalid_argument& e) {
+	//	//	std::cerr << "Err! FindAndConfirmCountDownNumber. "<<e.what() << " File:" << __FILE__ << " LINE:" << __LINE__ << "\r\n";
+	//	//}
+	//	return uc;
+	//}
 
 }

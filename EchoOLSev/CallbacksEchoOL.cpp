@@ -72,6 +72,43 @@ namespace EchoOLSev {
 		}
 	};
 
+	const std::unique_ptr
+		< DWORD
+		, void (*)(DWORD*)
+		> gpOldConsoleMode
+	{ []()
+		{
+			const auto gpOldConsoleMode = new DWORD;
+			HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
+			if (!GetConsoleMode(hOut, gpOldConsoleMode))
+			{
+				cerr << "Err!GetConsoleMode"<<" LINE:"<<to_string(__LINE__)<<"\r\n";
+			}
+			DWORD ConModeOut =
+				0
+				| ENABLE_PROCESSED_OUTPUT
+				| ENABLE_WRAP_AT_EOL_OUTPUT
+				| ENABLE_VIRTUAL_TERMINAL_PROCESSING
+				//		|DISABLE_NEWLINE_AUTO_RETURN       
+				//		|ENABLE_LVB_GRID_WORLDWIDE
+				;
+			if (!SetConsoleMode(hOut, ConModeOut))
+			{
+				cerr << "Err!SetConsoleMode" << " LINE:" << to_string(__LINE__) << "\r\n";
+			}
+			return gpOldConsoleMode;
+		}()
+	,[](_Inout_ DWORD* gpOldConsoleMode)
+		{
+			HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
+			if (!SetConsoleMode(hOut, *gpOldConsoleMode))
+			{
+				cerr << "Err!SetConsoleMode" << " LINE:" << to_string(__LINE__) << "\r\n";
+			}
+			delete gpOldConsoleMode;
+		}
+	};
+
 	VOID OnListenCompCB(PTP_CALLBACK_INSTANCE Instance, PVOID Context, PVOID Overlapped, ULONG IoResult, ULONG_PTR NumberOfBytesTransferred, PTP_IO Io)
 	{
 		//リッスンソケット
@@ -136,38 +173,19 @@ namespace EchoOLSev {
 			pSocket->WriteBuf += "\r\n";
 
 			//クライアントへの送信
-			TP_WORK* pTPWork(NULL);
-			if (!(pTPWork = CreateThreadpoolWork(SendWorkCB, pSocket, &*pcbe)))
+			if (!Send(pSocket))
 			{
-				DWORD Err = GetLastError();
-				cerr << "Err! EchoOLSev SendWorkCB CreateThreadpoolWork.Code:" << to_string(Err) << " LINE:" << __LINE__ << "\r\n";
 				CleanupSocket(pSocket);
 				return;
 			}
-			SubmitThreadpoolWork(pTPWork);
-
-			////フロントの受信
-			//if (!(pTPWork = CreateThreadpoolWork(RecvWorkCB, pSocket, &*pcbe)))
-			//{
-			//	DWORD Err = GetLastError();
-			//	cerr << "Err! EchoOLSev RecvWorkCB CreateThreadpoolWork.Code:" << to_string(Err) << " LINE:" << __LINE__ << "\r\n";
-			//	CleanupSocket(pSocket);
-			//	return;
-			//}
-			//SubmitThreadpoolWork(pTPWork);
-
 			//でなければ、フロントからの受信体制
 		}
 		else {
-			TP_WORK* pTPWork(NULL);
-			if (!(pTPWork = CreateThreadpoolWork(RecvWorkCB, pSocket, &*pcbe)))
+			if (!Recv(pSocket))
 			{
-				DWORD Err = GetLastError();
-				cerr << "Err! EchoOLSev RecvWorkCB CreateThreadpoolWork.Code:" << to_string(Err) << " LINE:" << __LINE__ << "\r\n";
 				CleanupSocket(pSocket);
 				return;
 			}
-			SubmitThreadpoolWork(pTPWork);
 		}
 		return;
 	}
@@ -176,21 +194,11 @@ namespace EchoOLSev {
 	{
 //		MyTRACE("Enter OnSocketFrontNoticeCompCB\r\n");
 		SocketContext* pSocket = (SocketContext*)Context;
-		//BOOL expected(FALSE);
-		//if(!pSocket->fReEnterGuard.compare_exchange_strong(expected,TRUE))
-		//
-		//{
-		//	StartThreadpoolIo(Io);
-		//	MyTRACE("ReEnter OnSocketNoticeCompCB\r\n");
-		//	return;
-		//}
-		//pSocket->fReEnterGuard = TRUE;
 
 		//エラー確認
 		if (IoResult)
 		{
 			MyTRACE(("Err! OLSev OnSocketFrontNoticeCompCB Code:" + to_string(IoResult) + " Line:" + to_string(__LINE__) + " SocketID:" + to_string(pSocket->ID) + "\r\n").c_str());
-			pSocket->fReEnterGuard = FALSE;
 			return;
 		}
 
@@ -199,7 +207,6 @@ namespace EchoOLSev {
 		{
 			MyTRACE(("Socket ID:" + to_string(pSocket->ID) + " Closed\r\n").c_str());
 			CleanupSocket(pSocket);
-			pSocket->fReEnterGuard = FALSE;
 			return;
 		}
 
@@ -215,44 +222,20 @@ namespace EchoOLSev {
 			if (pSocket->WriteBuf.size())
 			{
 				pSocket->WriteBuf += "\r\n";
-				if (!SendFront(pSocket))
+				if (!Send(pSocket))
 				{
 					CleanupSocket(pSocket);
-					pSocket->fReEnterGuard = FALSE;
 					return;
 				}
-				//TP_WORK* pTPWork(NULL);
-				//SocketContext* pSocket = (SocketContext*)Context;
-				//if (!(pTPWork = CreateThreadpoolWork(SendWorkCB, pSocket, &*pcbe)))
-				//{
-				//	DWORD Err = GetLastError();
-				//	cerr << "Err! EchoOLSev SendWorkCB CreateThreadpoolWork.Code:" << to_string(Err) << " LINE:" << __LINE__ << "\r\n";
-				//	CleanupSocket(pSocket);
-				//	pSocket->fReEnterGuard = FALSE;
-				//	return;
-				//}
-				//SubmitThreadpoolWork(pTPWork);
 			}
 			else {
 				//WriteBufに中身がない場合送信はしない。受信完了ポートスタート。
-				if (!RecvFront(pSocket))
+				if (!Recv(pSocket))
 				{
 					CleanupSocket(pSocket);
-					pSocket->fReEnterGuard = FALSE;
 					return;
 				}
-				//TP_WORK* pTPWork(NULL);
-				//if (!(pTPWork = CreateThreadpoolWork(RecvWorkCB, pSocket, &*pcbe)))
-				//{
-				//	DWORD Err = GetLastError();
-				//	cerr << "Err! EchoOLSev RecvWorkCB CreateThreadpoolWork.Code:" << to_string(Err) << " LINE:" << __LINE__ << "\r\n";
-				//	CleanupSocket(pSocket);
-				//	pSocket->fReEnterGuard = FALSE;
-				//	return;
-				//}
-				//SubmitThreadpoolWork(pTPWork);
 			}
-			pSocket->fReEnterGuard = FALSE;
 			return;
 		}
 		//送信完了。
@@ -261,27 +244,15 @@ namespace EchoOLSev {
 			MyTRACE(("SevOL Front Sent:" + pSocket->WriteBuf).c_str());
 			pSocket->WriteBuf.clear();
 			//受信完了ポートスタート。
-			if (!RecvFront(pSocket))
+			if (!Recv(pSocket))
 			{
 				CleanupSocket(pSocket);
-				pSocket->fReEnterGuard = FALSE;
 				return;
 			}
-			//TP_WORK* pTPWork(NULL);
-			//if (!(pTPWork = CreateThreadpoolWork(RecvWorkCB, pSocket, &*pcbe)))
-			//{
-			//	DWORD Err = GetLastError();
-			//	cerr << "Err! EchoOLSev RecvWorkCB CreateThreadpoolWork.Code:" << to_string(Err) << " LINE:" << __LINE__ << "\r\n";
-			//	CleanupSocket(pSocket);
-			//	pSocket->fReEnterGuard = FALSE;
-			//	return;
-			//}
-			//SubmitThreadpoolWork(pTPWork);
 		}
 		else {
 			int i = 0;//通常ここには来ない。
 		}
-		pSocket->fReEnterGuard = FALSE;
 		return;
 	}
 
@@ -332,7 +303,7 @@ namespace EchoOLSev {
 		}
 	}
 
-	BOOL SendFront(SocketContext* pSocket)
+	BOOL Send(SocketContext* pSocket)
 	{
 		StartThreadpoolIo(pSocket->pTPIo);
 		pSocket->Dir = SocketContext::eDir::DIR_TO_FRONT;
@@ -341,14 +312,14 @@ namespace EchoOLSev {
 		{
 			DWORD Err = WSAGetLastError();
 			if (Err != WSA_IO_PENDING && Err != 0) {
-				cerr << "Err! SendFront. Code:" << to_string(Err) << " LINE:" << __LINE__ << "\r\n";
+				cerr << "Err! Send. Code:" << to_string(Err) << " LINE:" << __LINE__ << "\r\n";
 				return FALSE;
 			}
 		}
 		return TRUE;
 	}
 
-	BOOL RecvFront(SocketContext* pSocket)
+	BOOL Recv(SocketContext* pSocket)
 	{
 		StartThreadpoolIo(pSocket->pTPIo);
 		pSocket->Dir = SocketContext::eDir::DIR_TO_BACK;
@@ -359,7 +330,7 @@ namespace EchoOLSev {
 			DWORD Err = WSAGetLastError();
 			if (Err != WSA_IO_PENDING && Err != 0)
 			{
-				cerr << "Err! RecvFront. Code:" << to_string(Err) << " LINE:" << __LINE__ << "\r\n";
+				cerr << "Err! Recv. Code:" << to_string(Err) << " LINE:" << __LINE__ << "\r\n";
 				return FALSE;
 			}
 		}
@@ -460,7 +431,6 @@ namespace EchoOLSev {
 		}
 
 		//リッスンソケット完了ポート作成
-
 		if (!(pListenContext->pTPListen = CreateThreadpoolIo((HANDLE)pListenContext->hSocket, OnListenCompCB, pListenContext, &*pcbe))) {
 			cerr << "Err! CreateThreadpoolIo. LINE:" << __LINE__ << "\r\n";
 			return false;
@@ -535,7 +505,7 @@ namespace EchoOLSev {
 	{
 		std::cout << "Total Connected: " << gTotalConnected << "\r\n";
 		std::cout << "Current Connecting: " << gTotalConnected - gCDel << "\r\n";
-		std::cout << "Max Connected: " << gMaxConnecting << "\r\n";
+		std::cout << "Max Connecting: " << gMaxConnecting << "\r\n";
 		std::cout << "Max Accepted/Sec: " << gAcceptedPerSec << "\r\n\r\n";
 	}
 

@@ -17,6 +17,6 @@
 
 namespace EchoOLSev {
 
-	constexpr auto MAX_TASKS = 1;
+	constexpr auto MAX_TASKS = 2;
 	constexpr auto MIN_TASKS = 1;
 }

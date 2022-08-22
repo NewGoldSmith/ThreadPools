@@ -34,17 +34,17 @@ namespace SevOL {
         void ReInitialize();
         void WsaToStr(WSABUF* pwsa, string* pstr);
         void StrToWsa(string* pstr, WSABUF* pwsa);
-        WSABUF wsaReadBuf;
-        WSABUF wsaWriteBuf;
+        WSABUF wsaFrontReadBuf;
+        WSABUF wsaFrontWriteBuf;
         WSABUF wsaReadBackBuf;
         WSABUF wsaWriteBackBuf;
-        SOCKET hSocket;
-        SOCKET hSocketBack;
-        string ReadBuf;
-        string WriteBuf;
-        string ReadBackBuf;
-        string WriteBackBuf;
-        string RemBuf;
+        SOCKET hFrontSocket;
+        SOCKET hBackSocket;
+        string FrontReadBuf;
+        string FrontWriteBuf;
+        string BackReadBuf;
+        string BackWriteBuf;
+        string FrontRemBuf;
         u_short ID;
         enum eDir { DIR_NOT_SELECTED = 0, DIR_TO_BACK, DIR_TO_FRONT };
         eDir Dir;
@@ -52,10 +52,11 @@ namespace SevOL {
         WSAOVERLAPPED OLBack;
         DWORD flags;
         DWORD flagsBack;
-        TP_IO* pTPIo;
-        TP_IO* pTPBackIo;
-        BOOL fFrontReEnterGuard;
-        BOOL fBackReEnterGuard;
+        TP_IO* pForwardTPIo;
+        TP_IO* pBackTPIo;
+        binary_semaphore lockCleanup;
+        binary_semaphore FrontEnterlock;
+        binary_semaphore BackEnterlock;
     };
 
     class SocketListenContext

@@ -22,7 +22,6 @@ namespace EchoOLSev {
 		, Dir(eDir::DIR_NOT_SELECTED)
 		, flags(0)
 		, pTPIo(NULL)
-		, fReEnterGuard(FALSE)
 	{
 		wsaReadBuf.buf = ReadBuf.data();
 		wsaReadBuf.len = ReadBuf.length();
@@ -60,7 +59,6 @@ namespace EchoOLSev {
 		ID = 0;
 		Dir = eDir::DIR_NOT_SELECTED;
 		flags = 0;
-		fReEnterGuard=FALSE;
 	}
 
 	void SocketContext::WsaToStr(WSABUF* pwsa, string* pstr)

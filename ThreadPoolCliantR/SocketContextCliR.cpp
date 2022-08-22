@@ -1,4 +1,4 @@
-//Copyright (c) 2021, Gold Smith
+//Copyright (c) 2022, Gold Smith
 //Released under the MIT license
 //https ://opensource.org/licenses/mit-license.php
 
@@ -99,5 +99,17 @@ namespace ThreadPoolCliantR {
 			tMin = min(tmpMin, tMin);
 		}
 		return tMin;
+	}
+	u_int SocketContext::FindAndConfirmCountDownNumber(const std::string &str)
+	{
+		std::string s(str);
+		size_t it2 = s.rfind("\r\n");
+		size_t it1 = s.rfind(":", it2);
+		std::string substr = s.substr(it1 + 1, it2 - it1 - 1);
+		if (substr.empty())
+		{
+			return 0;
+		}
+		return std::stoi(substr);
 	}
 }

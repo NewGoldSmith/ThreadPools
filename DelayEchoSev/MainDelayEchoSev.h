@@ -16,6 +16,7 @@
 #include "SocketContextDelay.h"
 
 
-
-constexpr auto MAX_TASKS = 2;
-constexpr auto MIN_TASKS = 1;
+namespace SevDelay {
+	constexpr auto MAX_TASKS = 3;
+	constexpr auto MIN_TASKS = 1;
+}

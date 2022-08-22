@@ -1,4 +1,4 @@
-//Copyright (c) 2021, Gold Smith
+//Copyright (c) 2022, Gold Smith
 //Released under the MIT license
 //https ://opensource.org/licenses/mit-license.php
 
@@ -21,8 +21,8 @@
 namespace ThreadPoolCliantR {
 
 	constexpr auto ELM_SIZE = 0x4000;
-	constexpr auto NUM_THREAD = 2;
-	constexpr auto NUM_CONNECT =75;
+	constexpr auto NUM_THREAD = 3;
+	constexpr auto NUM_CONNECT =5000;
 	constexpr auto HOST_ADDR = "127.0.0.6";
 	constexpr u_short HOST_PORT = 0;
 	constexpr auto PEER_ADDR= "127.0.0.2";
@@ -70,9 +70,8 @@ namespace ThreadPoolCliantR {
 	void StartTimer(SocketContext* pSocket);
 	u_int GetDeffSec(const FILETIME& end, const FILETIME& start);
 	u_int GetDeffmSec(const FILETIME& end, const FILETIME& start);
-	FILETIME* Make1000mSecFileTime(FILETIME* pfiletime);
 	bool MakeAndSendSocketMessage(SocketContext* pSocket);
-	u_int FindAndConfirmCountDownNumber(const std::string& str);
+//	u_int FindAndConfirmCountDownNumber(const std::string& str);
 
 #ifdef _DEBUG
 //#define MY_DEBUG

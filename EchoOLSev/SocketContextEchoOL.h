@@ -41,7 +41,6 @@ namespace EchoOLSev {
         eDir Dir;
         DWORD flags;
         TP_IO* pTPIo;
-        atomic<BOOL> fReEnterGuard;
     };
 
     class SocketListenContext

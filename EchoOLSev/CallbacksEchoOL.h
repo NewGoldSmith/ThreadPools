@@ -54,8 +54,8 @@ namespace EchoOLSev {
         PTP_WORK              Work
     );
 
-    BOOL SendFront(SocketContext* pSocket);
-    BOOL RecvFront(SocketContext* pSocket);
+    BOOL Send(SocketContext* pSocket);
+    BOOL Recv(SocketContext* pSocket);
  
     VOID CALLBACK MeasureConnectedPerSecCB(
         PTP_CALLBACK_INSTANCE Instance,

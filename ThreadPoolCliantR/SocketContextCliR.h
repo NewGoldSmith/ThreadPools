@@ -1,4 +1,4 @@
-//Copyright (c) 2021, Gold Smith
+//Copyright (c) 2022, Gold Smith
 //Released under the MIT license
 //https ://opensource.org/licenses/mit-license.php
 
@@ -20,7 +20,7 @@
 namespace ThreadPoolCliantR {
 
 	constexpr auto BUFFER_SIZE = 1024;
-	constexpr auto N_COUNTDOWNS = 5;
+	constexpr auto N_COUNTDOWNS = 4;
 
 	class SocketContext {
 	public:
@@ -31,6 +31,7 @@ namespace ThreadPoolCliantR {
 		void ReInitialize();
 		ULONGLONG GetMaxResponce();
 		ULONGLONG GetMinResponce();
+		u_int FindAndConfirmCountDownNumber(const std::string& str);
 		SOCKET hSocket;
 		u_short ID;
 		int CountDown;

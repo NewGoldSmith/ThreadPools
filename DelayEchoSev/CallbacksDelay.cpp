@@ -93,6 +93,42 @@ namespace SevDelay {
 		}
 	};
 
+	const std::unique_ptr
+		< DWORD
+		, void (*)(DWORD*)
+		> gpOldConsoleMode
+	{ []()
+		{
+			const auto gpOldConsoleMode = new DWORD;
+			HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
+			if (!GetConsoleMode(hOut, gpOldConsoleMode))
+			{
+				cerr << "Err!GetConsoleMode" << " LINE:" << to_string(__LINE__) << "\r\n";
+			}
+			DWORD ConModeOut =
+				0
+				| ENABLE_PROCESSED_OUTPUT
+				| ENABLE_WRAP_AT_EOL_OUTPUT
+				| ENABLE_VIRTUAL_TERMINAL_PROCESSING
+				//		|DISABLE_NEWLINE_AUTO_RETURN       
+				//		|ENABLE_LVB_GRID_WORLDWIDE
+				;
+			if (!SetConsoleMode(hOut, ConModeOut))
+			{
+				cerr << "Err!SetConsoleMode" << " LINE:" << to_string(__LINE__) << "\r\n";
+			}
+			return gpOldConsoleMode;
+		}()
+	,[](_Inout_ DWORD* gpOldConsoleMode)
+		{
+			HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
+			if (!SetConsoleMode(hOut, *gpOldConsoleMode))
+			{
+				cerr << "Err!SetConsoleMode" << " LINE:" << to_string(__LINE__) << "\r\n";
+			}
+			delete gpOldConsoleMode;
+		}
+	};
 
 	VOID OnListenCompCB(PTP_CALLBACK_INSTANCE Instance, PVOID Context, PVOID Overlapped, ULONG IoResult, ULONG_PTR NumberOfBytesTransferred, PTP_IO Io)
 	{
@@ -463,7 +499,6 @@ namespace SevDelay {
 		}
 
 		//リッスンソケット完了ポート作成
-		
 		if (!(pListenContext->pTPListen = CreateThreadpoolIo((HANDLE)pListenContext->hSocket,OnListenCompCB, pListenContext, &*pcbe))) {
 			cerr << "Err! CreateThreadpoolIo. LINE:" << __LINE__ << "\r\n";
 			return false;
@@ -539,7 +574,9 @@ namespace SevDelay {
 		std::cout << "Total Connected: " << gTotalConnected << "\r\n";
 		std::cout << "Current Connecting: " << gTotalConnected - gCDel <<"\r\n";
 		std::cout << "Max Connected: " << gMaxConnecting << "\r\n";
-		std::cout << "Max Accepted/Sec: " << gAcceptedPerSec << "\r\n\r\n";
+		std::cout << "Max Accepted/Sec: " << gAcceptedPerSec << "\r\n";
+		cout<<"IP Address: "<< HOST_ADDR << ":" << HOST_PORT << "\r\n\r\n";
+
 	}
 
 	void ClearStatus()
@@ -549,6 +586,12 @@ namespace SevDelay {
 		gMaxConnecting = 0;
 		gAcceptedPerSec = 0;
 		ShowStatus();
+	}
+
+	void Cls()
+	{
+		cout << "\x1b[2J";
+		cout << "\x1b[0;0H";
 	}
 
 	std::string SplitLastLineBreak(std::string& str)

@@ -5,49 +5,47 @@
 //Server side
 #include "SocketContextOL.h"
 
-
-
-
 namespace SevOL {
 
 	SocketContext::SocketContext()
 		:
-		wsaReadBuf{}
-		, wsaWriteBuf{}
+		wsaFrontReadBuf{}
+		, wsaFrontWriteBuf{}
 		, wsaReadBackBuf{}
 		, wsaWriteBackBuf{}
-		, hSocket(NULL)
-		, hSocketBack(NULL)
-		, ReadBuf(BUFFER_SIZE, '\0')
-		, WriteBuf(BUFFER_SIZE, '\0')
-		, ReadBackBuf(BUFFER_SIZE,'\0')
-		, WriteBackBuf(BUFFER_SIZE,'\0')
-		, RemBuf(BUFFER_SIZE, '\0')
+		, hFrontSocket(NULL)
+		, hBackSocket(NULL)
+		, FrontReadBuf(BUFFER_SIZE, '\0')
+		, FrontWriteBuf(BUFFER_SIZE, '\0')
+		, BackReadBuf(BUFFER_SIZE,'\0')
+		, BackWriteBuf(BUFFER_SIZE,'\0')
+		, FrontRemBuf(BUFFER_SIZE, '\0')
 		, ID(0)
 		, Dir(eDir::DIR_NOT_SELECTED)
 		, OLBack{}
 		, flags(0)
 		, flagsBack(0)
-		, pTPIo(NULL)
-		, pTPBackIo(NULL)
-		, fFrontReEnterGuard(FALSE)
-		, fBackReEnterGuard(FALSE)
+		, pForwardTPIo(NULL)
+		, pBackTPIo(NULL)
+		, lockCleanup(1)
+		, FrontEnterlock(1)
+		, BackEnterlock(1)
 	{
-		wsaReadBuf.buf = ReadBuf.data();
-		wsaReadBuf.len = ReadBuf.length();
-		wsaWriteBuf.buf = WriteBuf.data();
-		wsaWriteBuf.len = WriteBuf.length();
-		RemBuf.clear();
+		wsaFrontReadBuf.buf = FrontReadBuf.data();
+		wsaFrontReadBuf.len = FrontReadBuf.length();
+		wsaFrontWriteBuf.buf = FrontWriteBuf.data();
+		wsaFrontWriteBuf.len = FrontWriteBuf.length();
+		FrontRemBuf.clear();
 		hEvent = WSACreateEvent();
 	};
 
 	SocketContext::~SocketContext()
 	{
-		if (hSocket)
+		if (hFrontSocket)
 		{
-			shutdown(hSocket, SD_SEND);
-			closesocket(hSocket);
-			hSocket = NULL;
+			shutdown(hFrontSocket, SD_SEND);
+			closesocket(hFrontSocket);
+			hFrontSocket = NULL;
 		}
 		if (hEvent)
 		{
@@ -56,30 +54,34 @@ namespace SevOL {
 	}
 	void SocketContext::ReInitialize()
 	{
-		pTPIo = NULL;
-		pTPBackIo = NULL;
-		if (hSocket)
+		if (hFrontSocket)
 		{
-			shutdown(hSocket, SD_SEND);
-			closesocket(hSocket);
-			hSocket = NULL;
+			shutdown(hFrontSocket, SD_SEND);
+			closesocket(hFrontSocket);
+			hFrontSocket = NULL;
 		}
-		if (hSocketBack)
+		if (hBackSocket)
 		{
-			shutdown(hSocketBack, SD_SEND);
-			closesocket(hSocketBack);
-			hSocketBack = NULL;
+			shutdown(hBackSocket, SD_SEND);
+			closesocket(hBackSocket);
+			hBackSocket = NULL;
 		}
-		ReadBuf.clear();
-		WriteBuf.clear();
-		RemBuf.clear();
+		FrontReadBuf.clear();
+		FrontWriteBuf.clear();
+		FrontRemBuf.clear();
+		BackReadBuf.clear();
+		BackWriteBuf.clear();
 		ID = 0;
 		Dir = eDir::DIR_NOT_SELECTED;
 		OLBack = {};
 		flags = 0;
 		flagsBack = 0;
-		fFrontReEnterGuard=FALSE;
-		fBackReEnterGuard=FALSE;
+		Sleep(100);
+		lockCleanup.release();
+		FrontEnterlock.release();
+		BackEnterlock.release();
+		//pForwardTPIo = NULL;
+		//pBackTPIo = NULL;
 	}
 
 	void SocketContext::WsaToStr(WSABUF* pwsa, string* pstr)

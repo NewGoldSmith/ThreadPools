@@ -73,6 +73,7 @@ namespace SevDelay {
     void EndListen(SocketListenContext*pListen);
     void ShowStatus();
     void ClearStatus();
+    void Cls();
     std::string SplitLastLineBreak(std::string &str);
     bool PreAccept(SocketListenContext*pListenSocket);
 #ifdef _DEBUG

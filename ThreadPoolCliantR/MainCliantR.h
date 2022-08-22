@@ -1,4 +1,4 @@
-//Copyright (c) 2021, Gold Smith
+//Copyright (c) 2022, Gold Smith
 //Released under the MIT license
 //https ://opensource.org/licenses/mit-license.php
 
@@ -16,7 +16,7 @@
 
 namespace ThreadPoolCliantR {
 
-	constexpr auto MAX_TASKS = 2;
+	constexpr auto MAX_TASKS = 3;
 	constexpr auto MIN_TASKS = 1;
 
 }

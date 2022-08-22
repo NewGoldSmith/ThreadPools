@@ -63,9 +63,37 @@ namespace SevOL {
         PTP_IO                Io
     );
 
+    VOID CALLBACK SendFrontWorkCB(
+        PTP_CALLBACK_INSTANCE Instance,
+        PVOID                 Context,
+        PTP_WORK              Work
+    );
+
     BOOL SendFront(SocketContext* pSocket);
+
+    VOID CALLBACK SendBackWorkCB(
+        PTP_CALLBACK_INSTANCE Instance,
+        PVOID                 Context,
+        PTP_WORK              Work
+    );
+
     BOOL SendBack(SocketContext* pSocket);
+
+    VOID CALLBACK RecvFrontWorkCB(
+        PTP_CALLBACK_INSTANCE Instance,
+        PVOID                 Context,
+        PTP_WORK              Work
+    );
+
     BOOL RecvFront(SocketContext* pSocket);
+
+
+    VOID CALLBACK RecvBackWorkCB(
+        PTP_CALLBACK_INSTANCE Instance,
+        PVOID                 Context,
+        PTP_WORK              Work
+    );
+
     BOOL RecvBack(SocketContext* pSocket);
 
     VOID CALLBACK MeasureConnectedPerSecCB(
@@ -74,7 +102,8 @@ namespace SevOL {
         PTP_TIMER             Timer
     );
 
-    void CleanupSocket(SocketContext* pSocket);
+    void FrontCleanupSocket(SocketContext* pSocket);
+    void BackCleanupSocket(SocketContext* pSocket);
     int StartListen(SocketListenContext*);
     LPFN_ACCEPTEX GetAcceptEx(SocketListenContext*pAcceptSocket);
     LPFN_GETACCEPTEXSOCKADDRS GetGetAcceptExSockaddrs(SocketContext* pListenSocket);
@@ -87,6 +116,7 @@ namespace SevOL {
     BOOL TryConnectBack(SocketContext*pSocket);
     void ShowStatus();
     void ClearStatus();
+    void Cls();
     std::string SplitLastLineBreak(std::string &str);
     bool PreAccept(SocketListenContext*pListenSocket);
 #ifdef _DEBUG
