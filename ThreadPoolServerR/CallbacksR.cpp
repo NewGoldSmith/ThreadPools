@@ -83,7 +83,7 @@ namespace ThreadPoolServerR {
 		if (NetworkEvents.lNetworkEvents & FD_ACCEPT)
 		{
 			u_int uID(gID++);
-			SocketContext* pSocket = gSocketsPool.Pop();
+			SocketContext* pSocket = gSocketsPool.Pull();
 			pSocket->ID = uID;
 			if ((pSocket->hSocket = accept(gpListenSocket->hSocket, NULL, NULL)) == INVALID_SOCKET)
 			{
@@ -215,7 +215,7 @@ namespace ThreadPoolServerR {
 
 	int StartListen()
 	{
-		gpListenSocket = gSocketsPool.Pop();
+		gpListenSocket = gSocketsPool.Pull();
 		//デバック用にIDをつける。リッスンソケットIDは0。
 		gpListenSocket->ID = gID++;
 

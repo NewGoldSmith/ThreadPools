@@ -21,6 +21,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "DelayEchoSev", "DelayEchoSe
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "EchoOLSev", "EchoOLSev\EchoOLSev.vcxproj", "{7CC92AC0-F6A3-4DA6-A347-046BA3AEA760}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Roundrobin", "Roundrobin\Roundrobin.vcxproj", "{67D03091-0E48-49C8-A3A5-90808B90A2F3}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -62,9 +64,13 @@ Global
 		{1C120C26-686B-4EF2-9196-04250DC6C6C6}.Release|x86.ActiveCfg = Release|Win32
 		{1C120C26-686B-4EF2-9196-04250DC6C6C6}.Release|x86.Build.0 = Release|Win32
 		{91B34713-B364-4B16-AAA2-E1F0918360E5}.Debug|x64.ActiveCfg = Debug|x64
+		{91B34713-B364-4B16-AAA2-E1F0918360E5}.Debug|x64.Build.0 = Debug|x64
 		{91B34713-B364-4B16-AAA2-E1F0918360E5}.Debug|x86.ActiveCfg = Debug|Win32
+		{91B34713-B364-4B16-AAA2-E1F0918360E5}.Debug|x86.Build.0 = Debug|Win32
 		{91B34713-B364-4B16-AAA2-E1F0918360E5}.Release|x64.ActiveCfg = Release|x64
+		{91B34713-B364-4B16-AAA2-E1F0918360E5}.Release|x64.Build.0 = Release|x64
 		{91B34713-B364-4B16-AAA2-E1F0918360E5}.Release|x86.ActiveCfg = Release|Win32
+		{91B34713-B364-4B16-AAA2-E1F0918360E5}.Release|x86.Build.0 = Release|Win32
 		{9142FBC2-A4A6-4C1E-8276-A32D33780604}.Debug|x64.ActiveCfg = Debug|x64
 		{9142FBC2-A4A6-4C1E-8276-A32D33780604}.Debug|x64.Build.0 = Debug|x64
 		{9142FBC2-A4A6-4C1E-8276-A32D33780604}.Debug|x86.ActiveCfg = Debug|Win32
@@ -89,6 +95,14 @@ Global
 		{7CC92AC0-F6A3-4DA6-A347-046BA3AEA760}.Release|x64.Build.0 = Release|x64
 		{7CC92AC0-F6A3-4DA6-A347-046BA3AEA760}.Release|x86.ActiveCfg = Release|Win32
 		{7CC92AC0-F6A3-4DA6-A347-046BA3AEA760}.Release|x86.Build.0 = Release|Win32
+		{67D03091-0E48-49C8-A3A5-90808B90A2F3}.Debug|x64.ActiveCfg = Debug|x64
+		{67D03091-0E48-49C8-A3A5-90808B90A2F3}.Debug|x64.Build.0 = Debug|x64
+		{67D03091-0E48-49C8-A3A5-90808B90A2F3}.Debug|x86.ActiveCfg = Debug|Win32
+		{67D03091-0E48-49C8-A3A5-90808B90A2F3}.Debug|x86.Build.0 = Debug|Win32
+		{67D03091-0E48-49C8-A3A5-90808B90A2F3}.Release|x64.ActiveCfg = Release|x64
+		{67D03091-0E48-49C8-A3A5-90808B90A2F3}.Release|x64.Build.0 = Release|x64
+		{67D03091-0E48-49C8-A3A5-90808B90A2F3}.Release|x86.ActiveCfg = Release|Win32
+		{67D03091-0E48-49C8-A3A5-90808B90A2F3}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

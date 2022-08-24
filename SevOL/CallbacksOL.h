@@ -69,15 +69,11 @@ namespace SevOL {
         PTP_WORK              Work
     );
 
-    BOOL SendFront(SocketContext* pSocket);
-
     VOID CALLBACK SendBackWorkCB(
         PTP_CALLBACK_INSTANCE Instance,
         PVOID                 Context,
         PTP_WORK              Work
     );
-
-    BOOL SendBack(SocketContext* pSocket);
 
     VOID CALLBACK RecvFrontWorkCB(
         PTP_CALLBACK_INSTANCE Instance,
@@ -85,16 +81,11 @@ namespace SevOL {
         PTP_WORK              Work
     );
 
-    BOOL RecvFront(SocketContext* pSocket);
-
-
     VOID CALLBACK RecvBackWorkCB(
         PTP_CALLBACK_INSTANCE Instance,
         PVOID                 Context,
         PTP_WORK              Work
     );
-
-    BOOL RecvBack(SocketContext* pSocket);
 
     VOID CALLBACK MeasureConnectedPerSecCB(
         PTP_CALLBACK_INSTANCE Instance,

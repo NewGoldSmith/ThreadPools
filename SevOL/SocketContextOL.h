@@ -55,8 +55,8 @@ namespace SevOL {
         TP_IO* pForwardTPIo;
         TP_IO* pBackTPIo;
         binary_semaphore lockCleanup;
-        binary_semaphore FrontEnterlock;
-        binary_semaphore BackEnterlock;
+//        binary_semaphore FrontEnterlock;
+//        binary_semaphore BackEnterlock;
     };
 
     class SocketListenContext

@@ -28,15 +28,15 @@ namespace SevOL {
 		, pForwardTPIo(NULL)
 		, pBackTPIo(NULL)
 		, lockCleanup(1)
-		, FrontEnterlock(1)
-		, BackEnterlock(1)
+		//, FrontEnterlock(1)
+		//, BackEnterlock(1)
 	{
 		wsaFrontReadBuf.buf = FrontReadBuf.data();
 		wsaFrontReadBuf.len = FrontReadBuf.length();
 		wsaFrontWriteBuf.buf = FrontWriteBuf.data();
 		wsaFrontWriteBuf.len = FrontWriteBuf.length();
 		FrontRemBuf.clear();
-		hEvent = WSACreateEvent();
+//		hEvent = WSACreateEvent();
 	};
 
 	SocketContext::~SocketContext()
@@ -47,10 +47,16 @@ namespace SevOL {
 			closesocket(hFrontSocket);
 			hFrontSocket = NULL;
 		}
-		if (hEvent)
+		if (hBackSocket)
 		{
-			WSACloseEvent(hEvent);
+			shutdown(hBackSocket, SD_SEND);
+			closesocket(hBackSocket);
+			hBackSocket = NULL;
 		}
+		//if (hEvent)
+		//{
+		//	WSACloseEvent(hEvent);
+		//}
 	}
 	void SocketContext::ReInitialize()
 	{
@@ -76,12 +82,12 @@ namespace SevOL {
 		OLBack = {};
 		flags = 0;
 		flagsBack = 0;
-		Sleep(100);
+		//Sleep(100);
 		lockCleanup.release();
-		FrontEnterlock.release();
-		BackEnterlock.release();
-		//pForwardTPIo = NULL;
-		//pBackTPIo = NULL;
+		//FrontEnterlock.release();
+		//BackEnterlock.release();
+		pForwardTPIo = NULL;
+		pBackTPIo = NULL;
 	}
 
 	void SocketContext::WsaToStr(WSABUF* pwsa, string* pstr)

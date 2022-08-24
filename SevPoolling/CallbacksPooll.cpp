@@ -153,7 +153,7 @@ namespace SevPooll {
 			++gTotalConnected;
 			gMaxConnecting.store(max(gMaxConnecting.load(), (gTotalConnected.load() - gCDel.load())));
 
-			SocketContext* pSocket = gSocketsPool.Pop();
+			SocketContext* pSocket = gSocketsPool.Pull();
 			pSocket->hSocket = hSocket;
 
 			//ノンブロッキングモードに変更

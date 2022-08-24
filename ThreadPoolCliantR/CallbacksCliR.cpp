@@ -377,7 +377,7 @@ namespace ThreadPoolCliantR {
 		using namespace ThreadPoolCliantR;
 		for (u_int i = 0; i < (u_int)Context; ++i)
 		{
-			SocketContext* pSocket = gSocketsPool.Pop();
+			SocketContext* pSocket = gSocketsPool.Pull();
 			pSocket->ID = gID++;
 
 			if (((pSocket->hSocket = WSASocket(AF_INET, SOCK_STREAM, IPPROTO_TCP, NULL, 0, NULL/*WSA_FLAG_OVERLAPPED*/)) == INVALID_SOCKET))

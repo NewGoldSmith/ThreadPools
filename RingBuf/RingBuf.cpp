@@ -7,18 +7,18 @@
 int main()
 {
     using namespace std;
-    char* pch = buf.Pop();
-    char* pch2=buf.Pop();
-    char* pch3 = buf.Pop();
-    char* pch4 = buf.Pop();
-    buf.Push(pch4);
-    buf.Push(pch3);
-    buf.Push(pch2);
-    buf.Push(pch);
-    pch = buf.Pop();
-    pch2 = buf.Pop();
-    pch3 = buf.Pop();
-    pch4 = buf.Pop();
+    char* pch = buf.Pull();
+    char* pch2=buf.Pull();
+    char* pch3 = buf.Pull();
+    char* pch4 = buf.Pull();
+    //buf.Push(pch4);
+    //buf.Push(pch3);
+    //buf.Push(pch2);
+    //buf.Push(pch);
+    //pch = buf.Pull();
+    //pch2 = buf.Pull();
+    //pch3 = buf.Pull();
+    //pch4 = buf.Pull();
     cout << *pch << "\r\n";
     cout << *pch2 << "\r\n";
     cout << *pch3 << "\r\n";

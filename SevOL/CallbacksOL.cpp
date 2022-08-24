@@ -394,27 +394,6 @@ namespace SevOL {
 		return;
 	}
 
-	BOOL SendFront(SocketContext* pSocket)
-	{
-		if (!pSocket->pForwardTPIo)
-		{
-			return FALSE;
-		}
-		StartThreadpoolIo(pSocket->pForwardTPIo);
-		pSocket->Dir = SocketContext::eDir::DIR_TO_FRONT;
-		pSocket->StrToWsa(&pSocket->FrontWriteBuf, &pSocket->wsaFrontWriteBuf);
-		if (WSASend(pSocket->hFrontSocket, &pSocket->wsaFrontWriteBuf, 1, NULL, 0, pSocket, NULL))
-		{
-			DWORD Err=WSAGetLastError();
-			if (Err!= WSA_IO_PENDING && Err!=0) {
-				cerr << "Err! SendFront. Code:" << to_string(Err) << " LINE:" << __LINE__ << "\r\n";
-				pSocket->lockCleanup.release();
-				return FALSE;
-			}
-		}
-		return TRUE;
-	}
-
 	VOID SendBackWorkCB(PTP_CALLBACK_INSTANCE Instance, PVOID Context, PTP_WORK Work)
 	{
 		SocketContext* pSocket = (SocketContext*)Context;
@@ -436,31 +415,18 @@ namespace SevOL {
 		return;
 	}
 
-	BOOL SendBack(SocketContext* pSocket)
-	{
-		StartThreadpoolIo(pSocket->pBackTPIo);
-		pSocket->DirBack = SocketContext::eDir::DIR_TO_BACK;
-		pSocket->StrToWsa(&pSocket->BackWriteBuf, &pSocket->wsaWriteBackBuf);
-		if (WSASend(pSocket->hBackSocket, &pSocket->wsaWriteBackBuf, 1, NULL, 0, &pSocket->OLBack, NULL))
-		{
-			DWORD Err=WSAGetLastError();
-			if (Err && Err !=WSA_IO_PENDING) {
-				cerr << "Err! SendBack. WSASend.Code:" << to_string(Err) << " LINE:" << __LINE__ << "\r\n";
-				return FALSE;
-			}
-		}
-		return TRUE;
-	}
-
 	VOID RecvFrontWorkCB(PTP_CALLBACK_INSTANCE Instance, PVOID Context, PTP_WORK Work)
 	{
 
 		SocketContext* pSocket = (SocketContext*)Context;
+		pSocket->lockCleanup.acquire();
 		if (!pSocket->pForwardTPIo)
 		{
+			pSocket->lockCleanup.release();
 			return;
 		}
 		StartThreadpoolIo(pSocket->pForwardTPIo);
+		pSocket->lockCleanup.release();
 		pSocket->Dir = SocketContext::eDir::DIR_TO_BACK;
 		pSocket->FrontReadBuf.resize(BUFFER_SIZE, '\0');
 		pSocket->StrToWsa(&pSocket->FrontReadBuf, &pSocket->wsaFrontReadBuf);
@@ -474,28 +440,6 @@ namespace SevOL {
 			}
 		}
 		return;
-	}
-
-	BOOL RecvFront(SocketContext* pSocket)
-	{
-		if (!pSocket->pForwardTPIo)
-		{
-			return FALSE;
-		}
-		StartThreadpoolIo(pSocket->pForwardTPIo);
-		pSocket->Dir = SocketContext::eDir::DIR_TO_BACK;
-		pSocket->FrontReadBuf.resize(BUFFER_SIZE, '\0');
-		pSocket->StrToWsa(&pSocket->FrontReadBuf, &pSocket->wsaFrontReadBuf);
-		if (!WSARecv(pSocket->hFrontSocket, &pSocket->wsaFrontReadBuf, 1, NULL, &pSocket->flags, pSocket, NULL))
-		{
-			DWORD Err = WSAGetLastError();
-			if (Err != WSA_IO_PENDING && Err)
-			{
-				cerr << "Err! RecvFront. Code:" << to_string(Err) << " LINE:" << __LINE__ << "\r\n";
-				return FALSE;
-			}
-		}
-		return TRUE;
 	}
 
 	VOID RecvBackWorkCB(PTP_CALLBACK_INSTANCE Instance, PVOID Context, PTP_WORK Work)
@@ -522,29 +466,6 @@ namespace SevOL {
 		return;
 	}
 
-	BOOL RecvBack(SocketContext* pSocket)
-	{
-		if (!pSocket->pBackTPIo)
-		{
-			return FALSE;
-		}
-		StartThreadpoolIo(pSocket->pBackTPIo);
-		pSocket->DirBack = SocketContext::eDir::DIR_TO_FRONT;
-		pSocket->BackReadBuf.resize(BUFFER_SIZE, '\0');
-		pSocket->StrToWsa(&pSocket->BackReadBuf, &pSocket->wsaReadBackBuf);
-
-		if (!WSARecv(pSocket->hBackSocket, &pSocket->wsaReadBackBuf, 1, NULL, &pSocket->flags, &pSocket->OLBack, NULL))
-		{
-			DWORD Err = WSAGetLastError();
-			if (Err != WSA_IO_PENDING && Err)
-			{
-				cerr << "Err! RecvBack. Code:" << to_string(Err) << " LINE:" << __LINE__ << "\r\n";
-				return FALSE;
-			}
-		}
-		return TRUE;
-	}
-
 	VOID MeasureConnectedPerSecCB(PTP_CALLBACK_INSTANCE Instance, PVOID Context, PTP_TIMER Timer)
 	{
 		static u_int oldNum(0);
@@ -559,15 +480,27 @@ namespace SevOL {
 
 	void FrontCleanupSocket(SocketContext* pSocket)
 	{
-		++gCDel;
-		if (!(gTotalConnected - gCDel))
+		pSocket->lockCleanup.acquire();
+		if (pSocket->pForwardTPIo)
 		{
-			TryConnectBackFirstMessage = TRUE;
-			ShowStatus();
+			CloseThreadpoolIo(pSocket->pForwardTPIo);
+			pSocket->pForwardTPIo = NULL;
+			++gCDel;
+			if (!(gTotalConnected - gCDel))
+			{
+				TryConnectBackFirstMessage = TRUE;
+				ShowStatus();
+			}
 		}
+		pSocket->lockCleanup.release();
+		pSocket->lockCleanup.acquire();	
+		if (pSocket->pBackTPIo)
+		{
+			CloseThreadpoolIo(pSocket->pBackTPIo);
+			pSocket->pBackTPIo = NULL;
+		}
+		pSocket->lockCleanup.release();
 		pSocket->ReInitialize();
-		pSocket->pForwardTPIo = NULL;
-		pSocket->pBackTPIo = NULL;
 		gSocketsPool.Push(pSocket);
 	}
 
@@ -577,9 +510,8 @@ namespace SevOL {
 		pSocket->hBackSocket = NULL;
 		closesocket(pSocket->hFrontSocket);
 		pSocket->hFrontSocket = NULL;
-//		FrontCleanupSocket( pSocket);
+		FrontCleanupSocket( pSocket);
 	}
-
 
 	int StartListen(SocketListenContext* pListenContext)
 	{
@@ -636,7 +568,6 @@ namespace SevOL {
 			cerr << "Err listen Code:" << to_string(WSAGetLastError()) << " Line:" << __LINE__ << "\r\n";
 			return false;
 		}
-
 
 		// Accepted/sec測定用タイマーコールバック設定
 		if (!(gpTPTimer = CreateThreadpoolTimer(MeasureConnectedPerSecCB, &gAcceptedPerSec, &*pcbe)))
@@ -787,11 +718,20 @@ namespace SevOL {
 		{
 			if ((Err = WSAGetLastError()) != WSAEWOULDBLOCK)
 			{
-				std::cerr << "connect Error. Code :" << std::to_string(Err) << " Line : " << __LINE__ << "\r\n";
+				std::cerr << "Err! connect. Code :" << std::to_string(Err) << " Line : " << __LINE__ << "\r\n";
 				return FALSE;
 			}
 		}
 		MyTRACE(("Connected Back End.SocketID:" + to_string(pSocket->ID) + "\r\n").c_str());
+
+		//ソケットリユースオプション
+		BOOL yes = 1;
+		if (setsockopt(pSocket->hBackSocket, SOL_SOCKET, SO_REUSEADDR, (const char*)&yes, sizeof(yes)))
+		{
+			++gCDel;
+			std::cerr << "setsockopt Error! Line:" << __LINE__ << "\r\n";
+		}
+
 		return TRUE;
 	}
 
@@ -847,7 +787,7 @@ namespace SevOL {
 	{
 
 		//アクセプト用ソケット取り出し
-		SocketContext* pAcceptSocket = gSocketsPool.Pop();
+		SocketContext* pAcceptSocket = gSocketsPool.Pull();
 		//オープンソケット作成
 		if (!(pAcceptSocket->hFrontSocket = WSASocket(AF_INET, SOCK_STREAM, IPPROTO_TCP, NULL, 0, WSA_FLAG_OVERLAPPED))) {
 			cerr << "Err WSASocket Code:" << to_string(WSAGetLastError()) << " Line:" << __LINE__ << "\r\n";

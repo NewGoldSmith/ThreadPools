@@ -29,13 +29,13 @@ public:
 		delete[]ppBuf;
 	}
 
-inline	T* Pop()
+inline	T* Pull()
 	{
 #ifndef NO_CONFIRM_RINGBUF
 		try {
 			if (front+1  < end)
 			{
-				throw std::out_of_range("Err! RingBuf.Pop (front&mask)+1 == (end&mask)\r\n"); // 例外送出
+				throw std::out_of_range("Err! RingBuf.Pull (front&mask)+1 == (end&mask)\r\n"); // 例外送出
 			}
 		}
 		catch (std::out_of_range& e) {

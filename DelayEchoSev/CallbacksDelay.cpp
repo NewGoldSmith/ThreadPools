@@ -618,7 +618,7 @@ namespace SevDelay {
 	{
 
 		//アクセプト用ソケット取り出し
-		SocketContext* pAcceptSocket = gSocketsPool.Pop();
+		SocketContext* pAcceptSocket = gSocketsPool.Pull();
 		//オープンソケット作成
 		if (!(pAcceptSocket->hSocket = WSASocket(AF_INET, SOCK_STREAM, IPPROTO_TCP, NULL, 0, WSA_FLAG_OVERLAPPED))) {
 			cerr << "Err WSASocket Code:" << to_string(WSAGetLastError()) << " Line:" << __LINE__ << "\r\n";
