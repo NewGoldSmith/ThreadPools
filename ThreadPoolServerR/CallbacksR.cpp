@@ -88,13 +88,19 @@ namespace ThreadPoolServerR {
 			if ((pSocket->hSocket = accept(gpListenSocket->hSocket, NULL, NULL)) == INVALID_SOCKET)
 			{
 				int Err = WSAGetLastError();
-				std::cerr << "SevID:" + std::to_string(pSocket->ID) + " accept. code:" + std::to_string(Err)+" File:"<<__FILE__<<" Line"<<  __LINE__ + "\r\n";
+				stringstream  ss;
+				ss << "SevID:" + std::to_string(pSocket->ID) + " accept. code:" + std::to_string(Err)+" File:"<<__FILE__<<" Line"<<  __LINE__ + "\r\n";
+				cerr << ss.str();
+				MyTRACE(ss.str().c_str());
 			}
 
 			//接続ソケットの通知イベントを設定。
 			if (WSAEventSelect(pSocket->hSocket, pSocket->hEvent, FD_CLOSE | FD_READ))
 			{
-				std::cerr << "SevID: " << std::to_string(pSocket->ID)<< "err:WSAEventSelect" << __FILE__ << __LINE__ << std::endl;
+				stringstream  ss;
+				ss << "SevID: " << std::to_string(pSocket->ID)<< "err:WSAEventSelect" << __FILE__ << __LINE__ << std::endl;
+				cerr << ss.str();
+				MyTRACE(ss.str().c_str());
 				return;
 			}
 
@@ -125,7 +131,10 @@ namespace ThreadPoolServerR {
 			Err = WSAGetLastError();
 			if (Err != WSANOTINITIALISED)
 			{
-				std::cerr << "Socket Err: " << Err << "FILE NAME: " << __FILE__ << "LINE: " << __LINE__ << std::endl;
+				stringstream  ss;
+				ss << "Socket Err: " << Err << "FILE NAME: " << __FILE__ << "LINE: " << __LINE__ << std::endl;
+				cerr << ss.str();
+				MyTRACE(ss.str().c_str());
 			}
 			CloseThreadpoolWait(Wait);
 			return;
@@ -139,7 +148,10 @@ namespace ThreadPoolServerR {
 			{
 				pSocket->Buf.clear();
 				Err = WSAGetLastError();
-				std::cerr << "Socket Err: " << Err << "FILE NAME: " << __FILE__ << " LINE: " << __LINE__ << std::endl;
+				stringstream  ss;
+				ss << "Err! recv Code: " << Err << "FILE NAME: " << __FILE__ << " LINE: " << __LINE__ << std::endl;
+				cerr << ss.str();
+				MyTRACE(ss.str().c_str());
 				pSocket->ReInitialize();
 				gSocketsPool.Push(pSocket);
 				CloseThreadpoolWait(Wait);
@@ -237,7 +249,10 @@ namespace ThreadPoolServerR {
 			gpListenSocket->ReInitialize();
 			gSocketsPool.Push(gpListenSocket);
 			++gCDel;
-			std::cerr << "setsockopt Error! Line:" << __LINE__ << "\r\n";
+			stringstream  ss;
+			ss << "setsockopt Error! Line:" << __LINE__ << "\r\n";
+			cerr << ss.str();
+			MyTRACE(ss.str().c_str());
 			return false;
 		}
 
@@ -249,12 +264,15 @@ namespace ThreadPoolServerR {
 		addr.sin_family = AF_INET;
 		addr.sin_port = htons(HOST_PORT);
 		int addr_size = sizeof(addr.sin_addr);
-		int rVal = inet_pton(AF_INET, HOST_ADDR, &(addr.sin_addr));
+		int rVal = inet_pton(AF_INET, HOST_BASE_ADDR, &(addr.sin_addr));
 		if (rVal != 1)
 		{
 			if (rVal == 0)
 			{
-				cerr<< "socket error:Listen inet_pton return val 0\r\n";
+				stringstream  ss;
+				ss<< "socket error:Listen inet_pton return val 0\r\n";
+				cerr << ss.str();
+				MyTRACE(ss.str().c_str());
 				gpListenSocket->ReInitialize();
 				gSocketsPool.Push(gpListenSocket);
 				++gCDel;
@@ -263,7 +281,10 @@ namespace ThreadPoolServerR {
 			else if (rVal == -1)
 			{
 				Err = WSAGetLastError();
-				cerr << "socket error:Listen return val is -1 by inet_pton. Code:"<<to_string(Err)<<"\r\n";
+				stringstream  ss;
+				ss << "socket error:Listen return val is -1 by inet_pton. Code:"<<to_string(Err)<<"\r\n";
+				cerr << ss.str();
+				MyTRACE(ss.str().c_str());
 				gpListenSocket->ReInitialize();
 				gSocketsPool.Push(gpListenSocket);
 				++gCDel;
@@ -274,7 +295,10 @@ namespace ThreadPoolServerR {
 		if (rVal == SOCKET_ERROR)
 		{
 			Err = WSAGetLastError();
-			cerr << "Err! Listen Socket bind. Code:" << to_string(rVal) << " LINE:" << __LINE__ << "\r\n";
+			stringstream  ss;
+			ss << "Err! Listen Socket bind. Code:" << to_string(rVal) << " LINE:" << __LINE__ << "\r\n";
+			cerr << ss.str();
+			MyTRACE(ss.str().c_str());
 			gpListenSocket->ReInitialize();
 			gSocketsPool.Push(gpListenSocket);
 			++gCDel;
@@ -284,7 +308,10 @@ namespace ThreadPoolServerR {
 		//イベント設定
 		if (WSAEventSelect(gpListenSocket->hSocket, gpListenSocket->hEvent, FD_ACCEPT/* | FD_CLOSE | FD_READ | FD_CONNECT | FD_WRITE*/))
 		{
-			cerr << "Err! Listen Socket WSAEventSelect. Code:" << to_string(WSAGetLastError()) << "LINE:" << __LINE__ << "\r\n";
+			stringstream  ss;
+			ss << "Err! Listen Socket WSAEventSelect. Code:" << to_string(WSAGetLastError()) << "LINE:" << __LINE__ << "\r\n";
+			cerr << ss.str();
+			MyTRACE(ss.str().c_str());
 			gpListenSocket->ReInitialize();
 			gSocketsPool.Push(gpListenSocket);
 			++gCDel;
@@ -294,19 +321,25 @@ namespace ThreadPoolServerR {
 		//イベントハンドラ設定
 		if (!(gpListenSocket->ptpwaitOnEvListen = CreateThreadpoolWait(OnEvListenCB, gpListenSocket, &*pcbe)))
 		{
-			cerr << "Err! Listen Socket CreateThreadpoolWait. Code:" << to_string(WSAGetLastError()) << "__LINE__" << __LINE__ << "\r\n";
+			stringstream  ss;
+			ss << "Err! Listen Socket CreateThreadpoolWait. Code:" << to_string(WSAGetLastError()) << "__LINE__" << __LINE__ << "\r\n";
+			cerr << ss.str();
+			MyTRACE(ss.str().c_str());
 			gpListenSocket->ReInitialize();
 			gSocketsPool.Push(gpListenSocket);
 			++gCDel;
 			return false;
 		}
 		SetThreadpoolWait(gpListenSocket->ptpwaitOnEvListen, gpListenSocket->hEvent, NULL);
-		std::cout << "Listen Start\r\n"<<HOST_ADDR<<":"<<to_string(HOST_PORT)<<"\r\n";
+		std::cout << "Listen Start\r\n"<<HOST_BASE_ADDR<<":"<<to_string(HOST_PORT)<<"\r\n";
 
 		//リッスン
 		if (listen(gpListenSocket->hSocket, SOMAXCONN))
 		{
-			cerr << "Err! Listen Socket listen. Code:" << to_string(WSAGetLastError()) << " LINE:" << __LINE__ << "\r\n";
+			stringstream  ss;
+			ss << "Err! Listen Socket listen. Code:" << to_string(WSAGetLastError()) << " LINE:" << __LINE__ << "\r\n";
+			cerr << ss.str();
+			MyTRACE(ss.str().c_str());
 			gpListenSocket->ReInitialize();
 			gSocketsPool.Push(gpListenSocket);
 			++gCDel;
@@ -316,7 +349,10 @@ namespace ThreadPoolServerR {
 		// Accepted/sec測定用タイマーコールバック設定
 		if (!(gpTPTimer = CreateThreadpoolTimer(MeasureConnectedPerSecCB, &gAcceptedPerSec, &*pcbe)))
 		{
-			std::cerr << "err:CreateThreadpoolTimer. Code:"<<to_string(WSAGetLastError())<<" LINE:" << __LINE__ << "\r\n";
+			stringstream  ss;
+			ss << "err:CreateThreadpoolTimer. Code:"<<to_string(WSAGetLastError())<<" LINE:" << __LINE__ << "\r\n";
+			cerr << ss.str();
+			MyTRACE(ss.str().c_str());
 			gpListenSocket->ReInitialize();
 			gSocketsPool.Push(gpListenSocket);
 			++gCDel;
@@ -339,7 +375,7 @@ namespace ThreadPoolServerR {
 		std::cout << "Current Connected: " << gID - gCDel - 1 << "\r\n";
 		std::cout << "Max Connecting: " << gMaxConnecting << "\r\n" ;
 		std::cout << "Max Accepted/Sec: " << gAcceptedPerSec << "\r\n";
-		std::cout << "Host: "<< HOST_ADDR<<":"<<to_string(HOST_PORT)<<"\r\n";
+		std::cout << "Host: "<< HOST_BASE_ADDR<<":"<<to_string(HOST_PORT)<<"\r\n";
 	}
 
 	void ClearStatus()

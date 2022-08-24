@@ -94,6 +94,8 @@ namespace ThreadPoolCliantR {
 		}
 	};
 
+	TryConnectContext gTryConnectContext[NUM_THREAD];
+
 	VOID OnEvSocketCB(PTP_CALLBACK_INSTANCE Instance, PVOID Context, PTP_WAIT Wait, TP_WAIT_RESULT WaitResult)
 	{
 		WSANETWORKEVENTS NetworkEvents{};
@@ -145,7 +147,10 @@ namespace ThreadPoolCliantR {
 				//受信したデータを表示する。
 				if (!(pTPWork = CreateThreadpoolWork(SerializedDisplayCB, pSocket, &*pcbe)))
 				{
-					std::cerr << "Err! CreateThreadpoolWork(SerializedDisplayCB, pSocket, &*pcbe). Line:" << to_string(__LINE__) << "\r\n";
+					stringstream  ss;
+					ss << "Err! CreateThreadpoolWork(SerializedDisplayCB, pSocket, &*pcbe). Line:" << to_string(__LINE__) << "\r\n";
+					MyTRACE(ss.str().c_str());
+					cerr << ss.str();
 				}
 				else {
 					SubmitThreadpoolWork(pTPWork);
@@ -182,7 +187,10 @@ namespace ThreadPoolCliantR {
 					}
 				}
 				else {
-					cerr << "Err! Reply data is wrong.Socket ID:" << to_string(pSocket->ID) << "\r\n";
+					stringstream  ss;
+					ss << "Err! Reply data is wrong.Socket ID:" << to_string(pSocket->ID) << "\r\n";
+					cerr << ss.str();
+					MyTRACE(ss.str().c_str());
 					CloseThreadpoolWait(Wait);
 					pSocket->ReInitialize();
 					gSocketsPool.Push(pSocket);
@@ -233,10 +241,14 @@ namespace ThreadPoolCliantR {
 		PTP_WORK ptpwork(NULL);
 		for (int i = 0; i < NUM_THREAD; ++i)
 		{
-
-			if (!(ptpwork = CreateThreadpoolWork(TryConnectCB, (PVOID)NUM_CONNECT, &*pcbe)))
+			gTryConnectContext[i].pAddr = HOST_BASE_ADDR;
+			gTryConnectContext[i].inc = i;
+			if (!(ptpwork = CreateThreadpoolWork(TryConnectCB, (PVOID)&gTryConnectContext[i], &*pcbe)))
 			{
-				std::cerr << "TryConnect Error.Line:" + __LINE__ << "\r\n";
+				stringstream  ss;
+				ss << "TryConnect Error.Line:" + __LINE__ << "\r\n";
+				cerr << ss.str();
+				MyTRACE(ss.str().c_str());
 				return FALSE;
 			}
 			SubmitThreadpoolWork(ptpwork);
@@ -253,7 +265,7 @@ namespace ThreadPoolCliantR {
 		) << "\r\n";
 		std::cout << "Max Responce msec:" << gtMaxRepTime.load() << "\r\n";
 		cout << "Target Address: " << PEER_ADDR<<":"<<to_string(PEER_PORT)<<"\r\n";
-		cout << "Host Address: " << HOST_ADDR << ":" << to_string(HOST_PORT) << "\r\n";
+		cout << "Host Base Address: " << HOST_BASE_ADDR << ":" << to_string(HOST_PORT) << "\r\n";
 		cout << "Job Time:" << to_string(GetDeffSec(gJobEndTime, gJobStartTime)) << "."<<to_string(GetDeffmSec(gJobEndTime,gJobStartTime))<<"\r\n";
 		cout << "\r\n";
 	}
@@ -292,8 +304,11 @@ namespace ThreadPoolCliantR {
 		PTP_TIMER pTPTimer(0);
 		if (!(pTPTimer = CreateThreadpoolTimer(OneSecTimerCB, pSocket, &*pcbe)))
 		{
-			std::cerr << "err CreateThreadpoolTimer. Line: " << __LINE__ << "\r\n";
+			stringstream  ss;
+			ss << "err CreateThreadpoolTimer. Line: " << __LINE__ << "\r\n";
 			++gCDel;
+			cerr << ss.str();
+			MyTRACE(ss.str().c_str());
 			pSocket->ReInitialize();
 			gSocketsPool.Push(pSocket);
 			return;
@@ -375,7 +390,66 @@ namespace ThreadPoolCliantR {
 	VOID TryConnectCB(PTP_CALLBACK_INSTANCE Instance, PVOID Context, PTP_WORK Work)
 	{
 		using namespace ThreadPoolCliantR;
-		for (u_int i = 0; i < (u_int)Context; ++i)
+		TryConnectContext* pContext = (TryConnectContext*)Context;
+
+		//ホストsockeaddr_in設定
+		DWORD Err = 0;
+		struct sockaddr_in addr = { };
+		addr.sin_family = AF_INET;
+		addr.sin_port = htons(HOST_PORT);
+		int addr_size = sizeof(addr.sin_addr);
+		int rVal = inet_pton(AF_INET, HOST_BASE_ADDR, &(addr.sin_addr));
+		if (rVal != 1)
+		{
+			if (rVal == 0)
+			{
+				stringstream  ss;
+				ss << "socket error:inet_pton input value invalided\r\n";
+				cerr << ss.str();
+				MyTRACE(ss.str().c_str());
+				return;
+			}
+			else if (rVal == -1)
+			{
+				Err = WSAGetLastError();
+				stringstream  ss;
+				ss << "socket error:inet_pton.Code:" << std::to_string(Err) << "\r\n";
+				cerr << ss.str();
+				MyTRACE(ss.str().c_str());
+				return;
+			}
+		}
+		//ベースアドレスからincだけ増加する
+		addr.sin_addr.S_un.S_un_b.s_b4 += pContext->inc;
+
+		//サーバー接続用のsockaddr_inを設定
+		struct sockaddr_in Peeraddr = { };
+		Peeraddr.sin_family = AF_INET;
+		Peeraddr.sin_port = htons(PEER_PORT);
+		int Peeraddr_size = sizeof(Peeraddr.sin_addr);
+		rVal = inet_pton(AF_INET, PEER_ADDR, &(Peeraddr.sin_addr));
+		if (rVal != 1)
+		{
+			if (rVal == 0)
+			{
+				stringstream  ss;
+				ss << "socket error:inet_pton input value invalided\r\n";
+				cerr << ss.str();
+				MyTRACE(ss.str().c_str());
+				return;
+			}
+			else if (rVal == -1)
+			{
+				Err = WSAGetLastError();
+				stringstream  ss;
+				ss << "socket error:inet_pton.Code:" << std::to_string(Err) << "\r\n";
+				cerr << ss.str();
+				MyTRACE(ss.str().c_str());
+				return;
+			}
+		}
+
+		for (u_int i = 0; i < NUM_CONNECT; ++i)
 		{
 			SocketContext* pSocket = gSocketsPool.Pull();
 			pSocket->ID = gID++;
@@ -386,72 +460,25 @@ namespace ThreadPoolCliantR {
 				pSocket->ReInitialize();
 				gSocketsPool.Push(pSocket);
 				++gCDel;
-				std::cout << "WSASocket Error! "<<"Line: "<< __LINE__<<"\r\n";
+				stringstream  ss;
+				ss << "WSASocket Error! "<<"Line: "<< __LINE__<<"\r\n";
+				cerr << ss.str();
+				MyTRACE(ss.str().c_str());
 				return;
 			}
 
-			//ホストバインド設定
-			DWORD Err = 0;
-			struct sockaddr_in addr = { };
-			addr.sin_family = AF_INET;
-			addr.sin_port = htons(HOST_PORT);
-			int addr_size = sizeof(addr.sin_addr);
-			int rVal = inet_pton(AF_INET, HOST_ADDR, &(addr.sin_addr));
-			if (rVal != 1)
-			{
-				if (rVal == 0)
-				{
-					std::cerr<< "socket error:inet_pton input value invalided\r\n";
-					pSocket->ReInitialize();
-					gSocketsPool.Push(pSocket);
-					++gCDel;
-					break ;
-				}
-				else if (rVal == -1)
-				{
-					Err = WSAGetLastError();
-					std::cerr << "socket error:inet_pton.Code:" << std::to_string(Err) << "\r\n";
-					pSocket->ReInitialize();
-					gSocketsPool.Push(pSocket);
-					++gCDel;
-					break ;
-				}
-			}
+			//ホストバインド
 			if (::bind(pSocket->hSocket, (struct sockaddr*)&(addr), sizeof(addr)) == SOCKET_ERROR)
 			{
 				Err = WSAGetLastError();
-				std::cerr << "bind Error! Code:"<<std::to_string(Err) << " Line: " << __LINE__ << "\r\n";
+				stringstream  ss;
+				ss << "CliR bind Error! Code:"<<std::to_string(Err) << " Line: " << __LINE__ << "\r\n";
+				cerr << ss.str();
+				MyTRACE(ss.str().c_str());
 				pSocket->ReInitialize();
 				gSocketsPool.Push(pSocket);
 				++gCDel;
 				break ;
-			}
-
-			//サーバー接続用のadd_inを設定
-			struct sockaddr_in Peeraddr = { };
-			Peeraddr.sin_family = AF_INET;
-			Peeraddr.sin_port = htons(PEER_PORT);
-			int Peeraddr_size = sizeof(Peeraddr.sin_addr);
-			rVal = inet_pton(AF_INET, PEER_ADDR, &(Peeraddr.sin_addr));
-			if (rVal != 1)
-			{
-				if (rVal == 0)
-				{
-					std::cerr << "socket error:inet_pton input value invalided\r\n";
-					pSocket->ReInitialize();
-					gSocketsPool.Push(pSocket);
-					++gCDel;
-					break ;
-				}
-				else if (rVal == -1)
-				{
-					Err = WSAGetLastError();
-					std::cerr << "socket error:inet_pton.Code:" << std::to_string(Err) << "\r\n";
-					pSocket->ReInitialize();
-					gSocketsPool.Push(pSocket);
-					++gCDel;
-					break ;
-				}
 			}
 
 			//コネクト
@@ -459,7 +486,10 @@ namespace ThreadPoolCliantR {
 			{
 				if ((Err = WSAGetLastError()) != WSAEWOULDBLOCK)
 				{
-					std::cerr <<"connect Error. Code :" << std::to_string(Err) <<  " Line : " << __LINE__ << "\r\n";
+					stringstream  ss;
+					ss <<"connect Error. Code :" << std::to_string(Err) <<  " Line : " << __LINE__ << "\r\n";
+					cerr << ss.str();
+					MyTRACE(ss.str().c_str());
 					pSocket->ReInitialize();
 					gSocketsPool.Push(pSocket);
 					++gCDel;
@@ -472,7 +502,10 @@ namespace ThreadPoolCliantR {
 			//ソケットのイベント設定
 			if (WSAEventSelect(pSocket->hSocket, pSocket->hEvent, /*FD_ACCEPT |*/ FD_CLOSE | FD_READ/* | FD_CONNECT | FD_WRITE*/))
 			{
-				std::cerr << "Error WSAEventSelect. Line:" << __LINE__ << "\r\n";
+				stringstream  ss;
+				ss << "Error WSAEventSelect. Line:" << __LINE__ << "\r\n";
+				cerr << ss.str();
+				MyTRACE(ss.str().c_str());
 				pSocket->ReInitialize();
 				gSocketsPool.Push(pSocket);
 				++gCDel;
@@ -483,7 +516,10 @@ namespace ThreadPoolCliantR {
 			PTP_WAIT pTPWait(NULL);
 			if (!(pTPWait = CreateThreadpoolWait(OnEvSocketCB, pSocket, &*ThreadPoolCliantR::pcbe)))
 			{
-				std::cerr << "Error CreateThreadpoolWait. Line:" << __LINE__ << "\r\n";
+				stringstream  ss;
+				ss << "Error CreateThreadpoolWait. Line:" << __LINE__ << "\r\n";
+				cerr << ss.str();
+				MyTRACE(ss.str().c_str());
 				pSocket->ReInitialize();
 				gSocketsPool.Push(pSocket);
 				++gCDel;
@@ -501,11 +537,14 @@ namespace ThreadPoolCliantR {
 	{
 		pSocket->WriteString = "CliID:"+ to_string( pSocket->ID) + " NumCount:" +to_string( pSocket->CountDown)+"\r\n";
 
-		MyTRACE(("CliID:" + to_string(pSocket->ID) + " Send    : " + pSocket->WriteString).c_str());
+		//MyTRACE(("CliID:" + to_string(pSocket->ID) + " Send    : " + pSocket->WriteString).c_str());
 
 		if (send(pSocket->hSocket, pSocket->WriteString.data(), pSocket->WriteString.length(), 0) == SOCKET_ERROR)
 		{
-			cerr << "Err! Code:" << to_string(WSAGetLastError()) << " LINE;" << __LINE__ << "\r\n";
+			stringstream  ss;
+			ss << "Err! Code:" << to_string(WSAGetLastError()) << " LINE;" << __LINE__ << "\r\n";
+			cerr << ss.str();
+			MyTRACE(ss.str().c_str());
 			return false;
 		}
 		pSocket->WriteString.clear();

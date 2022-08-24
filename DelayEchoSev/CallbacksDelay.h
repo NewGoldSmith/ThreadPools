@@ -20,8 +20,8 @@
 #include "RingBuf.h"
 
 namespace SevDelay {
-    constexpr auto ELM_SIZE = 0x4000;   //0x4000;/*16384*/
-    constexpr auto HOST_ADDR = "127.0.0.4";
+    constexpr auto ELM_SIZE = 0x8000;   //0x4000;/*16384*/
+    constexpr auto HOST_BASE_ADDR = "127.0.0.2";
     constexpr u_int HOST_PORT = 50000;
     VOID CALLBACK OnListenCompCB(
         PTP_CALLBACK_INSTANCE Instance,

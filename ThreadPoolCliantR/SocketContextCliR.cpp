@@ -75,7 +75,6 @@ namespace ThreadPoolCliantR {
 				tmpMax = (t64Recv - t64Send) / 10000.0;
 			}
 			tMax = max(tmpMax, tMax);
-			MyTRACE(("Max:" + std::to_string(tMax) + "\r\n").c_str());
 		}
 		return tMax;
 	}

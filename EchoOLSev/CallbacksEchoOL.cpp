@@ -364,7 +364,7 @@ namespace EchoOLSev {
 	int StartListen(SocketListenContext* pListenContext)
 	{
 		cout << "Start Listen\r\n";
-		cout << HOST_ADDR << ":" << HOST_PORT << "\r\n";
+		cout << HOST_BASE_ADDR << ":" << HOST_PORT << "\r\n";
 		//デバック用にIDをつける。リッスンソケットIDは0。
 		pListenContext->ID = gID++;
 
@@ -389,7 +389,7 @@ namespace EchoOLSev {
 		struct sockaddr_in addr = { };
 		addr.sin_family = AF_INET;
 		addr.sin_port = htons(HOST_PORT);
-		int rVal = inet_pton(AF_INET, HOST_ADDR, &(addr.sin_addr));
+		int rVal = inet_pton(AF_INET, HOST_BASE_ADDR, &(addr.sin_addr));
 		if (rVal != 1)
 		{
 			if (rVal == 0)

@@ -12,16 +12,18 @@
 #include <tchar.h>
 #include <iostream>
 #include <string>
+#include <sstream>
 #include <semaphore>
 #include <exception>
 #include "MainR.h"
 #include "SocketContextR.h"
 #include "RingBuf.h"
+#include <vector>
 
 namespace ThreadPoolServerR {
 
     constexpr auto ELM_SIZE = 0x4000;
-    constexpr auto HOST_ADDR= "127.0.0.2";
+    constexpr auto HOST_BASE_ADDR= "127.0.0.2";
     constexpr u_short HOST_PORT = 50000;
 
     VOID OnEvListenCB(
@@ -51,10 +53,13 @@ namespace ThreadPoolServerR {
     void ClearStatus();
     std::string SplitLastLineBreak(std::string& str);
     FILETIME* Make1000mSecFileTime(FILETIME *pfiletime);
+
 #ifdef _DEBUG
+#define MY_DEBUG
+#endif
+#ifdef MY_DEBUG
 #define    MyTRACE(lpsz) OutputDebugStringA(lpsz);
 #else
-#define SockTRACE __noop
 #define MyTRACE __noop
 #endif
 }
