@@ -21,11 +21,11 @@
 
 namespace ThreadPoolCliantR {
 
-	constexpr auto ELM_SIZE = 0x8000;
-	constexpr auto NUM_THREAD = 5;
-	constexpr u_int NUM_CONNECT =3000;
-	constexpr auto HOST_BASE_ADDR = "127.0.0.10";
-	constexpr u_short HOST_PORT = 0;
+	constexpr u_int ELM_SIZE = 0x4000;
+	constexpr u_int NUM_THREAD = 3;
+	constexpr u_int NUM_CONNECT =4000;
+	constexpr auto HOST_FRONT_LISTEN_BASE_ADDR = "127.0.0.10";
+	constexpr u_short HOST_FRONT_LISTEN_PORT = 0;
 	constexpr auto PEER_ADDR= "127.0.0.2";
 	constexpr u_short PEER_PORT = 50000;
 	//表示抑制
@@ -46,7 +46,7 @@ namespace ThreadPoolCliantR {
 	);
 
 	/// <summary>
-	/// コンソール出力中に、他のスレッドから割り込んで出力しないようにする。
+	/// コンソール出力中に、他のスレッドから割り込まれて出力されないようにする。
 	/// </summary>
 	/// <param name="Instance"></param>
 	/// <param name="Context"></param>

@@ -3,7 +3,7 @@
 //https ://opensource.org/licenses/mit-license.php
 #pragma once
 #include <exception>
-#define NO_CONFIRM_RINGBUF
+//#define NO_CONFIRM_RINGBUF
 template <class T>class RingBuf
 {
 public:
@@ -15,10 +15,24 @@ public:
 		, end(0)
 		, mask(sizeIn - 1)
 	{
+#ifndef NO_CONFIRM_RINGBUF
+		try {
+
+			if ((sizeIn & mask) != 0)
+			{
+				throw std::invalid_argument("Err! The RingBuf must be Power of Two.\r\n");
+			}
+		}
+		catch (std::invalid_argument& e)
+		{
+			std::cerr << e.what();
+			std::exception_ptr ep = std::current_exception();
+			std::rethrow_exception(ep);
+		}
+#endif // !NO_CONFIRM_RINGBUF
 		ppBuf = new T * [sizeIn];
 		for (size_t i(0); i < size; ++i)
 		{
-
 			ppBuf[i] = &pBufIn[i];
 		}
 	}
@@ -29,45 +43,47 @@ public:
 		delete[]ppBuf;
 	}
 
-inline	T* Pull()
+	T* Pull()
 	{
 #ifndef NO_CONFIRM_RINGBUF
 		try {
 			if (front+1  < end)
 			{
-				throw std::out_of_range("Err! RingBuf.Pull (front&mask)+1 == (end&mask)\r\n"); // 例外送出
+				throw std::runtime_error("Err! RingBuf.Pull (front&mask)+1 == (end&mask)\r\n"); // 例外送出
 			}
 		}
-		catch (std::out_of_range& e) {
+		catch (std::exception& e) {
 			// 例外を捕捉
 			// エラー理由を出力する
-			std::cout << e.what() << std::endl;
-			std::exit(1);
+			std::cerr << e.what() << std::endl;
+			std::exception_ptr ep = std::current_exception();
+			std::rethrow_exception(ep);
 		}
 #endif // !NO_CONFIRM_RINGBUF
-		T** ppT = &ppBuf[end++ & mask];
-		//++end;
+		T** ppT = &ppBuf[end & mask];
+		++end;
 		return *ppT;
 	}
 
-inline	void Push(T* pT)
+	void Push(T* pT)
 	{
 #ifndef NO_CONFIRM_RINGBUF
 		try {
 			if (front + 1 == end +size)
 			{
-				throw std::out_of_range("Err! RingBuf.Push (front&mask) + 1 == (end&mask)\r\n"); // 例外送出
+				throw std::runtime_error("Err! RingBuf.Push (front&mask) + 1 == (end&mask)\r\n"); // 例外送出
 			}
 		}
-		catch (std::out_of_range& e) {
+		catch (std::exception& e) {
 			// 例外を捕捉
 			// エラー理由を出力する
-			std::cout << e.what() << "\r\n";
-			std::exit(1);
+			std::cerr << e.what() << "\r\n";
+			std::exception_ptr ep = std::current_exception();
+			std::rethrow_exception(ep);
 		}
 #endif // !NO_CONFIRM_RINGBUF
-		//++front;
-		ppBuf[++front & mask] = pT;
+		++front;
+		ppBuf[front & mask] = pT;
 	}
 
 protected:

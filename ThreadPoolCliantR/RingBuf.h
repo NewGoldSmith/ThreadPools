@@ -3,7 +3,7 @@
 //https ://opensource.org/licenses/mit-license.php
 #pragma once
 #include <exception>
-#define NO_CONFIRM_RINGBUF
+//#define NO_CONFIRM_RINGBUF
 template <class T>class RingBuf
 {
 public:
@@ -15,11 +15,12 @@ public:
 		, end(0)
 		, mask(sizeIn - 1)
 	{
+#ifndef NO_CONFIRM_RINGBUF
 		try {
 
 			if ((sizeIn & mask) != 0)
 			{
-				throw std::invalid_argument("Err! The RingBuf is not on 2.\r\n");
+				throw std::invalid_argument("Err! The RingBuf must be Power of Two.\r\n");
 			}
 		}
 		catch (std::invalid_argument& e)
@@ -28,6 +29,7 @@ public:
 			std::exception_ptr ep = std::current_exception();
 			std::rethrow_exception(ep);
 		}
+#endif // !NO_CONFIRM_RINGBUF
 		ppBuf = new T * [sizeIn];
 		for (size_t i(0); i < size; ++i)
 		{
@@ -53,8 +55,9 @@ public:
 		catch (std::exception& e) {
 			// 例外を捕捉
 			// エラー理由を出力する
-			std::cout << e.what() << std::endl;
-			std::exit(1);
+			std::cerr << e.what() << std::endl;
+			std::exception_ptr ep = std::current_exception();
+			std::rethrow_exception(ep);
 		}
 #endif // !NO_CONFIRM_RINGBUF
 		T** ppT = &ppBuf[end & mask];
@@ -74,8 +77,9 @@ public:
 		catch (std::exception& e) {
 			// 例外を捕捉
 			// エラー理由を出力する
-			std::cout << e.what() << "\r\n";
-			std::exit(1);
+			std::cerr << e.what() << "\r\n";
+			std::exception_ptr ep = std::current_exception();
+			std::rethrow_exception(ep);
 		}
 #endif // !NO_CONFIRM_RINGBUF
 		++front;

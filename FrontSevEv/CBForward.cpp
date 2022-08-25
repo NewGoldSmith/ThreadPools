@@ -3,20 +3,21 @@
 //https ://opensource.org/licenses/mit-license.php
 
 //Server side
-#include "CallbacksR.h"
+#include "CBForward.h"
 
 using namespace std;
-namespace ThreadPoolServerR {
+
+namespace FrontSevEv {
 	std::atomic_uint gAcceptedPerSec(0);
 	std::atomic_uint gID(0);
 	std::atomic_uint gCDel(0);
 	std::atomic_uint gMaxConnecting(0);
-	ThreadPoolServerR::SocketContext gSockets[ELM_SIZE];
+	SocketContext gSockets[ELM_SIZE];
 	RingBuf gSocketsPool(gSockets, ELM_SIZE);
 	SocketContext* gpListenSocket(NULL);
 	PTP_TIMER gpTPTimer(NULL);
 
-	const std::unique_ptr
+	extern const unique_ptr
 		< TP_CALLBACK_ENVIRON
 		, decltype(DestroyThreadpoolEnvironment)*
 		> pcbe
@@ -37,7 +38,7 @@ namespace ThreadPoolServerR {
 		}
 	};
 
-	const std::unique_ptr
+	extern const unique_ptr
 		< TP_POOL
 		, decltype(CloseThreadpool)*
 		> ptpp
@@ -47,23 +48,26 @@ namespace ThreadPoolServerR {
 	, /*WINBASEAPI VOID WINAPI */CloseThreadpool/*(_Inout_ PTP_POOL ptpp)*/
 	};
 
-	const std::unique_ptr
+	extern const unique_ptr
 		< FILETIME
 		, void (*)(FILETIME*)
 		> gp1000msecFT
 	{ []()
 		{
 			const auto gp1000msecFT = new FILETIME;
-			Make1000mSecFileTime(gp1000msecFT);
+			ULARGE_INTEGER ulDueTime;
+			ulDueTime.QuadPart = (ULONGLONG)-(1 * 10 * 1000 * 1000);
+			gp1000msecFT->dwHighDateTime = ulDueTime.HighPart;
+			gp1000msecFT->dwLowDateTime = ulDueTime.LowPart;
 			return gp1000msecFT;
 		}()
 	,[](_Inout_ FILETIME* gp1000msecFT)
 		{
-				delete gp1000msecFT;
+			delete gp1000msecFT;
 		}
 	};
 
-	VOID ThreadPoolServerR::OnEvListenCB(PTP_CALLBACK_INSTANCE Instance, PVOID Context, PTP_WAIT Wait, TP_WAIT_RESULT WaitResult)
+	VOID OnEvListenCB(PTP_CALLBACK_INSTANCE Instance, PVOID Context, PTP_WAIT Wait, TP_WAIT_RESULT WaitResult)
 	{
 
 		SocketContext* gpListenSocket = (SocketContext*)Context;
@@ -119,7 +123,7 @@ namespace ThreadPoolServerR {
 		SetThreadpoolWait(Wait, gpListenSocket->hEvent, NULL);
 	}
 
-	VOID ThreadPoolServerR::OnEvSocketCB(PTP_CALLBACK_INSTANCE Instance, PVOID Context, PTP_WAIT Wait, TP_WAIT_RESULT WaitResult)
+	VOID OnEvSocketCB(PTP_CALLBACK_INSTANCE Instance, PVOID Context, PTP_WAIT Wait, TP_WAIT_RESULT WaitResult)
 	{
 		WSANETWORKEVENTS NetworkEvents{};
 		DWORD Err = 0;
@@ -257,8 +261,6 @@ namespace ThreadPoolServerR {
 		}
 
 		//ホストバインド設定
-//		CHAR strHostAddr[] = "127.0.0.2";
-//		u_short usHostPort = 50000;
 		DWORD Err = 0;
 		struct sockaddr_in addr = { };
 		addr.sin_family = AF_INET;
@@ -371,7 +373,7 @@ namespace ThreadPoolServerR {
 
 	void ShowStatus()
 	{
-		std::cout << "\r\nTotal Connected: " << to_string(ThreadPoolServerR::gID - 1) << "\r\n";
+		std::cout << "\r\nTotal Connected: " << to_string(gID - 1) << "\r\n";
 		std::cout << "Current Connected: " << gID - gCDel - 1 << "\r\n";
 		std::cout << "Max Connecting: " << gMaxConnecting << "\r\n" ;
 		std::cout << "Max Accepted/Sec: " << gAcceptedPerSec << "\r\n";
@@ -406,15 +408,6 @@ namespace ThreadPoolServerR {
 			str.erase(0, pos + 2);
 		}
 		return strsub;
-	}
-
-	FILETIME* Make1000mSecFileTime(FILETIME * pFiletime)
-	{
-		ULARGE_INTEGER ulDueTime;
-		ulDueTime.QuadPart = (ULONGLONG)-(1 * 10 * 1000 * 1000);
-		pFiletime->dwHighDateTime = ulDueTime.HighPart;
-		pFiletime->dwLowDateTime = ulDueTime.LowPart;
-		return pFiletime;
 	}
 
 }

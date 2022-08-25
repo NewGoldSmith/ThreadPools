@@ -21,8 +21,8 @@
 
 namespace EchoOLSev {
     constexpr auto ELM_SIZE = 0x8000;   //0x4000;/*16384*/
-    constexpr auto HOST_BASE_ADDR = "127.0.0.2";
-    constexpr u_int HOST_PORT = 50000;
+    constexpr auto HOST_FRONT_LISTEN_BASE_ADDR = "127.0.0.2";
+    constexpr u_int HOST_FRONT_LISTEN_PORT = 50000;
 
     VOID CALLBACK OnListenCompCB(
         PTP_CALLBACK_INSTANCE Instance,

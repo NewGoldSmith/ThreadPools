@@ -15,16 +15,19 @@
 #include <sstream>
 #include <semaphore>
 #include <exception>
-#include "MainR.h"
-#include "SocketContextR.h"
+#include "Main.h"
+#include "SocketContext.h"
 #include "RingBuf.h"
 #include <vector>
 
-namespace ThreadPoolServerR {
+namespace FrontSevEv {
 
-    constexpr auto ELM_SIZE = 0x4000;
-    constexpr auto HOST_BASE_ADDR= "127.0.0.2";
-    constexpr u_short HOST_LISTEN_PORT = 50000;
+    constexpr u_int ELM_SIZE = 0x4000;
+    constexpr auto HOST_FRONT_LISTEN_BASE_ADDR= "127.0.0.2";
+    constexpr u_short HOST_FRONT_LISTEN_PORT = 50000;
+    constexpr auto HOST_BACK_BASE_ADDR = "127.0.0.3";
+    constexpr auto PEER_BACK_BASE_ADDR = "127.0.0.10";
+    constexpr u_short PEER_BACK_PORT = 50000;
 
     VOID OnEvListenCB(
         PTP_CALLBACK_INSTANCE Instance, 
@@ -46,13 +49,13 @@ namespace ThreadPoolServerR {
         PTP_TIMER             Timer
     );
 
+
     void InitTP();
     int StartListen();
     void EndListen();
     void ShowStatus();
     void ClearStatus();
     std::string SplitLastLineBreak(std::string& str);
-    FILETIME* Make1000mSecFileTime(FILETIME *pfiletime);
 
 #ifdef _DEBUG
 #define MY_DEBUG

@@ -20,7 +20,7 @@
 namespace ThreadPoolCliantR {
 
 	constexpr auto BUFFER_SIZE = 1024;
-	constexpr auto N_COUNTDOWNS = 4;
+	constexpr auto N_COUNTDOWN = 4;
 
 	class SocketContext {
 	public:
@@ -40,8 +40,8 @@ namespace ThreadPoolCliantR {
 		std::string RemString;
 		std::string DispString;
 		WSAEVENT hEvent;
-		FILETIME  tSend[N_COUNTDOWNS + 1];
-		FILETIME  tRecv[N_COUNTDOWNS + 1];
+		FILETIME  tSend[N_COUNTDOWN + 1];
+		FILETIME  tRecv[N_COUNTDOWN + 1];
 	};
 
 }

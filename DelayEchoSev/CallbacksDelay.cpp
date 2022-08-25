@@ -432,7 +432,7 @@ namespace SevDelay {
 	{
 		cout << "Start Listen\r\n";
 		cout << "Backend DB\r\n";
-		cout << HOST_BASE_ADDR << ":" << HOST_PORT << "\r\n";
+		cout << HOST_FRONT_LISTEN_BASE_ADDR << ":" << HOST_FRONT_LISTEN_PORT << "\r\n";
 
 		//デバック用にIDをつける。リッスンソケットIDは0。
 		pListenContext->ID = gID++;
@@ -456,8 +456,8 @@ namespace SevDelay {
 		DWORD Err = 0;
 		struct sockaddr_in addr = { };
 		addr.sin_family = AF_INET;
-		addr.sin_port = htons(HOST_PORT);
-		int rVal = inet_pton(AF_INET, HOST_BASE_ADDR, &(addr.sin_addr));
+		addr.sin_port = htons(HOST_FRONT_LISTEN_PORT);
+		int rVal = inet_pton(AF_INET, HOST_FRONT_LISTEN_BASE_ADDR, &(addr.sin_addr));
 		if (rVal != 1)
 		{
 			if (rVal == 0)
@@ -575,7 +575,7 @@ namespace SevDelay {
 		std::cout << "Current Connecting: " << gTotalConnected - gCDel <<"\r\n";
 		std::cout << "Max Connected: " << gMaxConnecting << "\r\n";
 		std::cout << "Max Accepted/Sec: " << gAcceptedPerSec << "\r\n";
-		cout<<"IP Address: "<< HOST_BASE_ADDR << ":" << HOST_PORT << "\r\n\r\n";
+		cout<<"IP Address: "<< HOST_FRONT_LISTEN_BASE_ADDR << ":" << HOST_FRONT_LISTEN_PORT << "\r\n\r\n";
 
 	}
 

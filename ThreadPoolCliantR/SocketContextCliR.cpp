@@ -61,7 +61,7 @@ namespace ThreadPoolCliantR {
 	ULONGLONG SocketContext::GetMaxResponce()
 	{
 		ULONGLONG  tMax(0);
-		for (int i(0); i < N_COUNTDOWNS; ++i)
+		for (int i(0); i < N_COUNTDOWN; ++i)
 		{
 			ULONGLONG t64Send=(((ULONGLONG)tSend[i].dwHighDateTime) << 32) + tSend[i].dwLowDateTime;
 			ULONGLONG t64Recv= (((ULONGLONG)tRecv[i].dwHighDateTime) << 32) + tRecv[i].dwLowDateTime;
@@ -82,7 +82,7 @@ namespace ThreadPoolCliantR {
 	ULONGLONG SocketContext::GetMinResponce()
 	{
 		ULONGLONG tMin(ULLONG_MAX);
-		for (int i(0); i < N_COUNTDOWNS; ++i)
+		for (int i(0); i < N_COUNTDOWN; ++i)
 		{
 			ULONGLONG t64Send = (((ULONGLONG)tSend[i].dwHighDateTime) << 32) + tSend[i].dwLowDateTime;
 			ULONGLONG t64Recv = (((ULONGLONG)tRecv[i].dwHighDateTime) << 32) + tRecv[i].dwLowDateTime;

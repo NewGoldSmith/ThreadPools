@@ -21,8 +21,8 @@
 
 namespace SevOL {
     constexpr auto ELM_SIZE = 0x4000;   //0x4000;/*16384*/
-    constexpr auto HOST_BASE_ADDR = "127.0.0.2";
-    constexpr u_int HOST_PORT = 50000;
+    constexpr auto HOST_FRONT_LISTEN_BASE_ADDR = "127.0.0.2";
+    constexpr u_int HOST_FRONT_LISTEN_PORT = 50000;
     constexpr auto BACK_HOST_ADDR = "127.0.0.3";
     constexpr u_short BACK_HOST_PORT = 0;
     constexpr auto TO_BACK_END_ADDR = "127.0.0.4";

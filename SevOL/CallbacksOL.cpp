@@ -516,7 +516,7 @@ namespace SevOL {
 	int StartListen(SocketListenContext* pListenContext)
 	{
 		cout << "Start Listen\r\n";
-		cout << HOST_BASE_ADDR <<":" << HOST_PORT << "\r\n\r\n";
+		cout << HOST_FRONT_LISTEN_BASE_ADDR <<":" << HOST_FRONT_LISTEN_PORT << "\r\n\r\n";
 		//デバック用にIDをつける。リッスンソケットIDは0。
 		pListenContext->ID = gID++;
 
@@ -542,8 +542,8 @@ namespace SevOL {
 		DWORD Err = 0;
 		struct sockaddr_in addr = { };
 		addr.sin_family = AF_INET;
-		addr.sin_port = htons(HOST_PORT);
-		int rVal = inet_pton(AF_INET, HOST_BASE_ADDR, &(addr.sin_addr));
+		addr.sin_port = htons(HOST_FRONT_LISTEN_PORT);
+		int rVal = inet_pton(AF_INET, HOST_FRONT_LISTEN_BASE_ADDR, &(addr.sin_addr));
 		if (rVal != 1)
 		{
 			if (rVal == 0)
@@ -742,7 +742,7 @@ namespace SevOL {
 		std::cout << "Current Connecting: " << gTotalConnected - gCDel <<"\r\n";
 		std::cout << "Max Connected: " << gMaxConnecting << "\r\n";
 		std::cout << "Max Accepted/Sec: " << gAcceptedPerSec << "\r\n\r\n";
-		cout <<"Front Host Address: " << HOST_BASE_ADDR << ":" << HOST_PORT << "\r\n";
+		cout <<"Front Host Address: " << HOST_FRONT_LISTEN_BASE_ADDR << ":" << HOST_FRONT_LISTEN_PORT << "\r\n";
 		cout << "Back Host Address: " << BACK_HOST_ADDR << ":" << BACK_HOST_PORT << "\r\n";
 		cout << "Back Target Address: " << TO_BACK_END_ADDR << ":" << TO_BACK_END_PORT << "\r\n";
 		cout << "\r\n";

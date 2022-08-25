@@ -159,8 +159,8 @@ namespace ThreadPoolCliantR {
 				//レスポンス測定用。
 				u_int uiCount=pSocket->FindAndConfirmCountDownNumber(pSocket->DispString);
 				//見つけたカウントが範囲内か確認。
-				if (0 <= uiCount && uiCount <= N_COUNTDOWNS) {
-					GetSystemTimeAsFileTime(&pSocket->tRecv[N_COUNTDOWNS - uiCount]);
+				if (0 <= uiCount && uiCount <= N_COUNTDOWN) {
+					GetSystemTimeAsFileTime(&pSocket->tRecv[N_COUNTDOWN - uiCount]);
 					if (uiCount == 0)
 					{
 						CloseThreadpoolWait(Wait);
@@ -241,7 +241,7 @@ namespace ThreadPoolCliantR {
 		PTP_WORK ptpwork(NULL);
 		for (int i = 0; i < NUM_THREAD; ++i)
 		{
-			gTryConnectContext[i].pAddr = HOST_BASE_ADDR;
+			gTryConnectContext[i].pAddr = HOST_FRONT_LISTEN_BASE_ADDR;
 			gTryConnectContext[i].inc = i;
 			if (!(ptpwork = CreateThreadpoolWork(TryConnectCB, (PVOID)&gTryConnectContext[i], &*pcbe)))
 			{
@@ -265,7 +265,7 @@ namespace ThreadPoolCliantR {
 		) << "\r\n";
 		std::cout << "Max Responce msec:" << gtMaxRepTime.load() << "\r\n";
 		cout << "Target Address: " << PEER_ADDR<<":"<<to_string(PEER_PORT)<<"\r\n";
-		cout << "Host Base Address: " << HOST_BASE_ADDR << ":" << to_string(HOST_PORT) << "\r\n";
+		cout << "Host Base Address: " << HOST_FRONT_LISTEN_BASE_ADDR << ":" << to_string(HOST_FRONT_LISTEN_PORT) << "\r\n";
 		cout << "Job Time:" << to_string(GetDeffSec(gJobEndTime, gJobStartTime)) << "."<<to_string(GetDeffmSec(gJobEndTime,gJobStartTime))<<"\r\n";
 		cout << "\r\n";
 	}
@@ -291,7 +291,7 @@ namespace ThreadPoolCliantR {
 
 	void StartTimer(SocketContext* pSocket)
 	{
-		pSocket->CountDown = N_COUNTDOWNS;
+		pSocket->CountDown = N_COUNTDOWN;
 		if (!MakeAndSendSocketMessage(pSocket))
 		{
 			++gCDel;
@@ -300,7 +300,7 @@ namespace ThreadPoolCliantR {
 			return;
 		}
 		//レスポンス測定用。
-		GetSystemTimeAsFileTime(&pSocket->tSend[N_COUNTDOWNS - pSocket->CountDown]);
+		GetSystemTimeAsFileTime(&pSocket->tSend[N_COUNTDOWN - pSocket->CountDown]);
 		PTP_TIMER pTPTimer(0);
 		if (!(pTPTimer = CreateThreadpoolTimer(OneSecTimerCB, pSocket, &*pcbe)))
 		{
@@ -363,7 +363,7 @@ namespace ThreadPoolCliantR {
 			}
 
 			//レスポンス測定用。
-			GetSystemTimeAsFileTime(&pSocket->tSend[N_COUNTDOWNS - pSocket->CountDown]);
+			GetSystemTimeAsFileTime(&pSocket->tSend[N_COUNTDOWN - pSocket->CountDown]);
 
 			SetThreadpoolTimer(pTPTimer, &*gp1000msecFT, 0, 0);
 		}
@@ -393,12 +393,11 @@ namespace ThreadPoolCliantR {
 		TryConnectContext* pContext = (TryConnectContext*)Context;
 
 		//ホストsockeaddr_in設定
-		DWORD Err = 0;
 		struct sockaddr_in addr = { };
 		addr.sin_family = AF_INET;
-		addr.sin_port = htons(HOST_PORT);
+		addr.sin_port = htons(HOST_FRONT_LISTEN_PORT);
 		int addr_size = sizeof(addr.sin_addr);
-		int rVal = inet_pton(AF_INET, HOST_BASE_ADDR, &(addr.sin_addr));
+		int rVal = inet_pton(AF_INET, HOST_FRONT_LISTEN_BASE_ADDR, &(addr.sin_addr));
 		if (rVal != 1)
 		{
 			if (rVal == 0)
@@ -411,9 +410,9 @@ namespace ThreadPoolCliantR {
 			}
 			else if (rVal == -1)
 			{
-				Err = WSAGetLastError();
+				DWORD Err = WSAGetLastError();
 				stringstream  ss;
-				ss << "socket error:inet_pton.Code:" << std::to_string(Err) << "\r\n";
+				ss << "CliR. socket error:inet_pton.Code:" << to_string(Err) << "\r\n";
 				cerr << ss.str();
 				MyTRACE(ss.str().c_str());
 				return;
@@ -440,9 +439,9 @@ namespace ThreadPoolCliantR {
 			}
 			else if (rVal == -1)
 			{
-				Err = WSAGetLastError();
+				DWORD Err = WSAGetLastError();
 				stringstream  ss;
-				ss << "socket error:inet_pton.Code:" << std::to_string(Err) << "\r\n";
+				ss << "CliR. socket error:inet_pton.Code:" << to_string(Err) << "\r\n";
 				cerr << ss.str();
 				MyTRACE(ss.str().c_str());
 				return;
@@ -456,12 +455,13 @@ namespace ThreadPoolCliantR {
 
 			if (((pSocket->hSocket = WSASocket(AF_INET, SOCK_STREAM, IPPROTO_TCP, NULL, 0, NULL/*WSA_FLAG_OVERLAPPED*/)) == INVALID_SOCKET))
 			{
+				DWORD Err = WSAGetLastError();
 				pSocket->hSocket = NULL;
 				pSocket->ReInitialize();
 				gSocketsPool.Push(pSocket);
 				++gCDel;
 				stringstream  ss;
-				ss << "WSASocket Error! "<<"Line: "<< __LINE__<<"\r\n";
+				ss << "CliR. WSASocket Error! Code:"<<to_string(Err) << " Line: " << __LINE__ << "\r\n";
 				cerr << ss.str();
 				MyTRACE(ss.str().c_str());
 				return;
@@ -470,7 +470,7 @@ namespace ThreadPoolCliantR {
 			//ホストバインド
 			if (::bind(pSocket->hSocket, (struct sockaddr*)&(addr), sizeof(addr)) == SOCKET_ERROR)
 			{
-				Err = WSAGetLastError();
+				DWORD Err = WSAGetLastError();
 				stringstream  ss;
 				ss << "CliR bind Error! Code:"<<std::to_string(Err) << " Line: " << __LINE__ << "\r\n";
 				cerr << ss.str();
@@ -484,7 +484,8 @@ namespace ThreadPoolCliantR {
 			//コネクト
 			if (connect(pSocket->hSocket, (SOCKADDR*)&Peeraddr, sizeof(Peeraddr)) == SOCKET_ERROR)
 			{
-				if ((Err = WSAGetLastError()) != WSAEWOULDBLOCK)
+				DWORD Err = WSAGetLastError();
+				if (Err != WSAEWOULDBLOCK && Err)
 				{
 					stringstream  ss;
 					ss <<"connect Error. Code :" << std::to_string(Err) <<  " Line : " << __LINE__ << "\r\n";
@@ -500,10 +501,11 @@ namespace ThreadPoolCliantR {
 			gMaxConnect = __max(gMaxConnect.load(), gID - gCDel);
 
 			//ソケットのイベント設定
-			if (WSAEventSelect(pSocket->hSocket, pSocket->hEvent, /*FD_ACCEPT |*/ FD_CLOSE | FD_READ/* | FD_CONNECT | FD_WRITE*/))
+			if (WSAEventSelect(pSocket->hSocket, pSocket->hEvent, /*FD_ACCEPT |*/ FD_CLOSE | FD_READ/* | FD_CONNECT | FD_WRITE*/)== SOCKET_ERROR)
 			{
+				DWORD Err = WSAGetLastError();
 				stringstream  ss;
-				ss << "Error WSAEventSelect. Line:" << __LINE__ << "\r\n";
+				ss << "Error WSAEventSelect. Code:"<<to_string(Err)<<" Line:" << __LINE__ << "\r\n";
 				cerr << ss.str();
 				MyTRACE(ss.str().c_str());
 				pSocket->ReInitialize();
@@ -541,8 +543,9 @@ namespace ThreadPoolCliantR {
 
 		if (send(pSocket->hSocket, pSocket->WriteString.data(), pSocket->WriteString.length(), 0) == SOCKET_ERROR)
 		{
+			DWORD Err = WSAGetLastError();
 			stringstream  ss;
-			ss << "Err! Code:" << to_string(WSAGetLastError()) << " LINE;" << __LINE__ << "\r\n";
+			ss << "Err! CliR. send. Code:" << to_string(Err) << " LINE;" << __LINE__ << "\r\n";
 			cerr << ss.str();
 			MyTRACE(ss.str().c_str());
 			return false;
