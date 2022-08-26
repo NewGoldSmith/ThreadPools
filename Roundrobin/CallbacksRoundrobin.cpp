@@ -59,7 +59,7 @@ namespace RoundrobinSev{
 			cerr << "Err!Code:" << to_string(WaitResult) << "\r\n";
 			return;
 		}
-		ReleaseSemaphoreWhenCallbackReturns(Instance, pRC->hSem, 1);
+		ReleaseSemaphoreWhenCallbackReturns(Instance, pRC->hRoundSem, 1);
 		cout << "RoundWaitCB Start"+ to_string(pRC->ID)+"\r\n";
 		Sleep(1000);
 		cout << "RoundWaitCB End" + to_string(pRC->ID) + "\r\n";
@@ -77,7 +77,7 @@ namespace RoundrobinSev{
 		for (int i(0); i < 16; ++i)
 		{
 			RoundContext* pRC = rBuf.Pull();
-			pRC->hSem = gpSem.get();
+			pRC->hRoundSem = gpSem.get();
 			pRC->ID = i;
 			TP_WAIT* pTPWait(NULL);
 			if (!(pTPWait = CreateThreadpoolWait(RoundWaitCB, pRC, &*pcbe)))
@@ -88,7 +88,6 @@ namespace RoundrobinSev{
 			}
 			SetThreadpoolWait(pTPWait, gpSem.get(), NULL);
 			WaitForThreadpoolWaitCallbacks(pTPWait, FALSE);
-//			Sleep(100);
 		}
 		cout << "End run.\r\n";
 	}

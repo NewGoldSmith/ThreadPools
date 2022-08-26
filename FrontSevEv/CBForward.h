@@ -25,9 +25,6 @@ namespace FrontSevEv {
     constexpr u_int ELM_SIZE = 0x4000;
     constexpr auto HOST_FRONT_LISTEN_BASE_ADDR= "127.0.0.2";
     constexpr u_short HOST_FRONT_LISTEN_PORT = 50000;
-    constexpr auto HOST_BACK_BASE_ADDR = "127.0.0.3";
-    constexpr auto PEER_BACK_BASE_ADDR = "127.0.0.10";
-    constexpr u_short PEER_BACK_PORT = 50000;
 
     VOID OnEvListenCB(
         PTP_CALLBACK_INSTANCE Instance, 

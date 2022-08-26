@@ -11,7 +11,7 @@
 namespace RoundrobinSev {
 	RoundContext::RoundContext()
 		:ID(0)
-		,hSem(NULL)
+		,hRoundSem(NULL)
 	{
 	}
 
@@ -22,6 +22,6 @@ namespace RoundrobinSev {
 	void RoundContext::ReInit()
 	{
 		ID = 0;
-		hSem = NULL;
+		hRoundSem = NULL;
 	}
 }

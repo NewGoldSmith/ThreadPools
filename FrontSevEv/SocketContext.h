@@ -15,12 +15,13 @@
 #include <semaphore>
 #include <cassert>
 #include <exception>
+#include "RoundContext.h"
 
 
 constexpr auto BUFFER_SIZE = 1024;
 
 namespace FrontSevEv {
-
+    class RoundContext;
     class SocketContext {
     public:
         SocketContext();
@@ -32,5 +33,6 @@ namespace FrontSevEv {
         std::string RemString;
         WSAEVENT hEvent;
         PTP_WAIT ptpwaitOnEvListen;
+        RoundContext* pRC;
     };
 }

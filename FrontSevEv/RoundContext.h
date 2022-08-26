@@ -9,16 +9,22 @@
 #include <Windows.h>
 #include <iostream>
 #include <string>
+#include <vector>
 #include <semaphore>
-
+#include <algorithm>
+#include "SocketContext.h"
+#include "CBForward.h"
+using namespace std;
 namespace FrontSevEv {
-	class RoundrobinContext
+	class SocketContext;
+	class RoundContext
 	{
 	public:
-		RoundrobinContext();
-		~RoundrobinContext();
-		void ReInit();
-		u_int ID;
-		HANDLE hSem;
+		RoundContext();
+		~RoundContext();
+		void ReInitialize();
+		SOCKET hSocket;
+		SocketContext* pFrontSocket;
+		unique_ptr<remove_pointer_t<WSAEVENT>, decltype(WSACloseEvent)*> hEvent;
 	};
 }

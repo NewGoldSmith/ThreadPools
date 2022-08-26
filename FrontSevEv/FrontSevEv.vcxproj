@@ -166,7 +166,7 @@
     <ClCompile Include="CBBack.cpp" />
     <ClCompile Include="CBForward.cpp" />
     <ClCompile Include="Main.cpp" />
-    <ClCompile Include="RRContext.cpp" />
+    <ClCompile Include="RoundContext.cpp" />
     <ClCompile Include="SocketContext.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -174,7 +174,7 @@
     <ClInclude Include="CBForward.h" />
     <ClInclude Include="Main.h" />
     <ClInclude Include="RingBuf.h" />
-    <ClInclude Include="RRContext.h" />
+    <ClInclude Include="RoundContext.h" />
     <ClInclude Include="SocketContext.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

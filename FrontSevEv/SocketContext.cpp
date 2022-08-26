@@ -14,6 +14,7 @@ namespace FrontSevEv {
 		,Buf(BUFFER_SIZE,'\0')
 		, hEvent(NULL)
 		, ptpwaitOnEvListen(NULL)
+		, pRC(NULL)
 	{
 		try {
 			hEvent = WSACreateEvent();
@@ -61,5 +62,6 @@ namespace FrontSevEv {
 		ID = 0;
 		RemString.clear();
 		Buf.clear();
+		pRC = NULL;
 	}
 }

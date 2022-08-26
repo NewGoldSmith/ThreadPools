@@ -84,7 +84,7 @@ int main()
 			delete pwsadata;
 		}
 	};
-	//
+	//このスコープから出ると、Threadpoolのクリンナップ完了
 	{
 		const std::unique_ptr
 			< TP_CLEANUP_GROUP

@@ -27,6 +27,6 @@ namespace RoundrobinSev {
 		~RoundContext();
 		void ReInit();
 		int ID;
-		HANDLE hSem;
+		HANDLE hRoundSem;
 	};
 }
