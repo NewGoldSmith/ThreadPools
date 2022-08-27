@@ -29,7 +29,7 @@ namespace FrontSevEv {
 	VOID OnBackEvSocketCB(PTP_CALLBACK_INSTANCE Instance, PVOID Context, PTP_WAIT Wait, TP_WAIT_RESULT WaitResult);
 	VOID WriteBackWaitCB(PTP_CALLBACK_INSTANCE Instance, PVOID Context, PTP_WAIT Wait, TP_WAIT_RESULT WaitResult);
 
-	void WriteBack(SocketContext* pSocket);
+	void QueryBack(SocketContext* pSocket);
 	BOOL BackTryConnect();
 	void BackClose();
 }

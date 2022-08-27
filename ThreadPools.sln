@@ -25,6 +25,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Roundrobin", "Roundrobin\Ro
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "FrontSevEv", "FrontSevEv\FrontSevEv.vcxproj", "{CBA97524-7FCC-45EB-95F2-87EC150BBC6A}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "EchoOLDelaySev", "EchoOLDelaySev\EchoOLDelaySev.vcxproj", "{C6DD3AED-45F3-4A2C-852E-273BA9131B8E}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -113,6 +115,14 @@ Global
 		{CBA97524-7FCC-45EB-95F2-87EC150BBC6A}.Release|x64.Build.0 = Release|x64
 		{CBA97524-7FCC-45EB-95F2-87EC150BBC6A}.Release|x86.ActiveCfg = Release|Win32
 		{CBA97524-7FCC-45EB-95F2-87EC150BBC6A}.Release|x86.Build.0 = Release|Win32
+		{C6DD3AED-45F3-4A2C-852E-273BA9131B8E}.Debug|x64.ActiveCfg = Debug|x64
+		{C6DD3AED-45F3-4A2C-852E-273BA9131B8E}.Debug|x64.Build.0 = Debug|x64
+		{C6DD3AED-45F3-4A2C-852E-273BA9131B8E}.Debug|x86.ActiveCfg = Debug|Win32
+		{C6DD3AED-45F3-4A2C-852E-273BA9131B8E}.Debug|x86.Build.0 = Debug|Win32
+		{C6DD3AED-45F3-4A2C-852E-273BA9131B8E}.Release|x64.ActiveCfg = Release|x64
+		{C6DD3AED-45F3-4A2C-852E-273BA9131B8E}.Release|x64.Build.0 = Release|x64
+		{C6DD3AED-45F3-4A2C-852E-273BA9131B8E}.Release|x86.ActiveCfg = Release|Win32
+		{C6DD3AED-45F3-4A2C-852E-273BA9131B8E}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

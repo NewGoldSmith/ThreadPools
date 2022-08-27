@@ -46,17 +46,6 @@ namespace FrontSevEv {
 			return;
 		}
 
-		//バックソケットのイベント解除
-		if (WSAEventSelect(pBackSocket->hSocket, pBackSocket->hEvent.get(), 0) == SOCKET_ERROR)
-		{
-			DWORD Err = WSAGetLastError();
-			stringstream  ss;
-			ss << "FrontSevEv. WSAEventSelect. Code:" << to_string(Err) << " Line:" << __LINE__ << "\r\n";
-			cerr << ss.str();
-			MyTRACE(ss.str().c_str());
-			return;
-		}
-
 		//読み込み可能
 		if (NetworkEvents.lNetworkEvents & FD_READ)
 		{
@@ -120,12 +109,15 @@ namespace FrontSevEv {
 			return;
 		}
 
+//待機オブジェクト再設定
+		SetThreadpoolWait(Wait, pBackSocket->hEvent.get(), NULL);
+
 		//次に呼ばれるまでプールに移動
 		pBackSocket->pFrontSocket = NULL;
 		BackContextPool.Push(pBackSocket);
 
 		//待機オブジェクト解放		
-		CloseThreadpoolWait(Wait);
+//		CloseThreadpoolWait(Wait);
 
 		//正常終了セマフォ解放設定。
 		ReleaseSemaphoreWhenCallbackReturns(Instance, gpSem.get(), 1);
@@ -148,30 +140,6 @@ namespace FrontSevEv {
 		//フロントソケットと結びつけ。
 		pBackSocket->pFrontSocket = pSocket;
 
-		//ソケットのイベント設定
-		if (WSAEventSelect(pBackSocket->hSocket, pBackSocket->hEvent.get(), /*FD_ACCEPT |*/ FD_CLOSE | FD_READ/* | FD_CONNECT | FD_WRITE*/) == SOCKET_ERROR)
-		{
-			DWORD Err = WSAGetLastError();
-			stringstream  ss;
-			ss << "FrontSevEv. WSAEventSelect. Code:" << to_string(Err) << " Line:" << __LINE__ << "\r\n";
-			cerr << ss.str();
-			MyTRACE(ss.str().c_str());
-			return;
-		}
-
-		//イベントハンドラの設定
-		PTP_WAIT pTPWait(NULL);
-		if (!(pTPWait = CreateThreadpoolWait(OnBackEvSocketCB, pBackSocket, &*pcbe)))
-		{
-			DWORD Err = GetLastError();
-			stringstream  ss;
-			ss << "FrontSevEv. CreateThreadpoolWait. CODE:" << to_string(Err) << " Line:" << __LINE__ << "\r\n";
-			cerr << ss.str();
-			MyTRACE(ss.str().c_str());
-			return ;
-		}
-		SetThreadpoolWait(pTPWait, pBackSocket->hEvent.get(), NULL);
-
 		//フロントのデータをバックに書き込み。
 		//返信はイベント設定されているので、OnBackEvSocketCBが呼ばれる。
 		//ContextはRoundContext
@@ -190,7 +158,7 @@ namespace FrontSevEv {
 	}
 
 	//ライトからリードまでが一つの流れ
-	void WriteBack(SocketContext* pSocket)
+	void QueryBack(SocketContext* pSocket)
 	{
 		//セマフォの待機関数としてセットする。
 		TP_WAIT* pTPWait(NULL);
@@ -298,34 +266,36 @@ namespace FrontSevEv {
 				}
 			}
 
-			////ソケットのイベント設定
-			//if (WSAEventSelect(pBackSocket->hSocket, pBackSocket->hEvent.get(), /*FD_ACCEPT |*/ FD_CLOSE | FD_READ/* | FD_CONNECT | FD_WRITE*/) == SOCKET_ERROR)
-			//{
-			//	DWORD Err = WSAGetLastError();
-			//	stringstream  ss;
-			//	ss << "FrontSevEv. WSAEventSelect. Code:" << to_string(Err) << " Line:" << __LINE__ << "\r\n";
-			//	cerr << ss.str();
-			//	MyTRACE(ss.str().c_str());
-			//	return FALSE;
-			//}
+			//ソケットのイベント設定
+			if (WSAEventSelect(pBackSocket->hSocket, pBackSocket->hEvent.get(), /*FD_ACCEPT |*/ FD_CLOSE | FD_READ/* | FD_CONNECT | FD_WRITE*/) == SOCKET_ERROR)
+			{
+				DWORD Err = WSAGetLastError();
+				stringstream  ss;
+				ss << "FrontSevEv. WSAEventSelect. Code:" << to_string(Err) << " Line:" << __LINE__ << "\r\n";
+				cerr << ss.str();
+				MyTRACE(ss.str().c_str());
+				return FALSE;
+			}
 
-			////イベントハンドラの設定
-			//PTP_WAIT pTPWait(NULL);
-			//if (!(pTPWait = CreateThreadpoolWait(OnBackEvSocketCB, pBackSocket, &*pcbe)))
-			//{
-			//	DWORD Err = GetLastError();
-			//	stringstream  ss;
-			//	ss << "FrontSevEv. CreateThreadpoolWait. CODE:"<<to_string(Err) << " Line:" << __LINE__ << "\r\n";
-			//	cerr << ss.str();
-			//	MyTRACE(ss.str().c_str());
-			//	return FALSE;
-			//}
-			//SetThreadpoolWait(pTPWait, pBackSocket->hEvent.get(), NULL);
+			//イベントハンドラの設定
+			PTP_WAIT pTPWait(NULL);
+			if (!(pTPWait = CreateThreadpoolWait(OnBackEvSocketCB, pBackSocket, &*pcbe)))
+			{
+				DWORD Err = GetLastError();
+				stringstream  ss;
+				ss << "FrontSevEv. CreateThreadpoolWait. CODE:"<<to_string(Err) << " Line:" << __LINE__ << "\r\n";
+				cerr << ss.str();
+				MyTRACE(ss.str().c_str());
+				return FALSE;
+			}
+			SetThreadpoolWait(pTPWait, pBackSocket->hEvent.get(), NULL);
+
 			//設定が済んだので再格納。
 			BackContextPool.Push(pBackSocket);
 		}
 		return TRUE;
 	}
+
 	void BackClose()
 	{
 		for (u_int i = 0; i < NUM_BACK_CONNECTION; ++i)

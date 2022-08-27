@@ -173,7 +173,7 @@ namespace FrontSevEv {
 				if (!pSocket->Buf.empty())
 				{
 					pSocket->Buf += "\r\n";
-					WriteBack(pSocket);
+					QueryBack(pSocket);
 				}
 				SetThreadpoolWait(Wait, pSocket->hEvent, NULL);
 				return;
@@ -357,7 +357,7 @@ namespace FrontSevEv {
 			++gCDel;
 			return false;
 		}
-		//SetThreadpoolTimer(gpTPTimer, &*gp1000msecFT, 1000, 0);
+		SetThreadpoolTimer(gpTPTimer, &*gp1000msecFT, 1000, 0);
 	}
 
 	void EndListen()
