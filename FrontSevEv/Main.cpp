@@ -132,6 +132,7 @@ int main()
 				}
 			}
 			EndListen();
+			BackClose();
 		}
 	}
 	return 0;

@@ -262,9 +262,9 @@ namespace ThreadPoolServerR {
 		DWORD Err = 0;
 		struct sockaddr_in addr = { };
 		addr.sin_family = AF_INET;
-		addr.sin_port = htons(HOST_FRONT_LISTEN_PORT);
+		addr.sin_port = htons(HOST_LISTEN_PORT);
 		int addr_size = sizeof(addr.sin_addr);
-		int rVal = inet_pton(AF_INET, HOST_FRONT_LISTEN_BASE_ADDR, &(addr.sin_addr));
+		int rVal = inet_pton(AF_INET, HOST_BASE_ADDR, &(addr.sin_addr));
 		if (rVal != 1)
 		{
 			if (rVal == 0)
@@ -331,7 +331,7 @@ namespace ThreadPoolServerR {
 			return false;
 		}
 		SetThreadpoolWait(gpListenSocket->ptpwaitOnEvListen, gpListenSocket->hEvent, NULL);
-		std::cout << "Listen Start\r\n"<<HOST_FRONT_LISTEN_BASE_ADDR<<":"<<to_string(HOST_FRONT_LISTEN_PORT)<<"\r\n";
+		std::cout << "Listen Start\r\n"<< HOST_BASE_ADDR <<":"<<to_string(HOST_LISTEN_PORT)<<"\r\n";
 
 		//ƒŠƒbƒXƒ“
 		if (listen(gpListenSocket->hSocket, SOMAXCONN))
@@ -375,7 +375,7 @@ namespace ThreadPoolServerR {
 		std::cout << "Current Connected: " << gID - gCDel - 1 << "\r\n";
 		std::cout << "Max Connecting: " << gMaxConnecting << "\r\n" ;
 		std::cout << "Max Accepted/Sec: " << gAcceptedPerSec << "\r\n";
-		std::cout << "Host: "<< HOST_FRONT_LISTEN_BASE_ADDR<<":"<<to_string(HOST_FRONT_LISTEN_PORT)<<"\r\n\r\n";
+		std::cout << "Host: "<< HOST_BASE_ADDR <<":"<<to_string(HOST_LISTEN_PORT)<<"\r\n\r\n";
 	}
 
 	void ClearStatus()

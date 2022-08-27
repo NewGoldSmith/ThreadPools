@@ -22,8 +22,8 @@
 namespace ThreadPoolCliantR {
 
 	constexpr u_int ELM_SIZE = 0x4000;
-	constexpr u_int NUM_THREAD = 1;
-	constexpr u_int NUM_CONNECT =1;
+	constexpr u_int NUM_THREAD = 3;
+	constexpr u_int NUM_CONNECT =5000;
 	constexpr auto HOST_BASE_ADDR = "127.0.0.6";
 	constexpr u_short HOST_PORT = 0;
 	constexpr auto PEER_ADDR= "127.0.0.2";

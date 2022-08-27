@@ -241,7 +241,7 @@ namespace EchoOLSev {
 		//送信完了。
 		else if (pSocket->Dir == SocketContext::eDir::DIR_TO_FRONT)
 		{
-			MyTRACE(("SevOL Front Sent:" + pSocket->WriteBuf).c_str());
+//			MyTRACE(("SevOL Front Sent:" + pSocket->WriteBuf).c_str());
 			pSocket->WriteBuf.clear();
 			//受信完了ポートスタート。
 			if (!Recv(pSocket))

@@ -3,6 +3,7 @@
 //https ://opensource.org/licenses/mit-license.php
 #pragma once
 #include <exception>
+#include <semaphore>
 //#define NO_CONFIRM_RINGBUF
 template <class T>class RingBuf
 {
@@ -14,6 +15,7 @@ public:
 		, front(sizeIn - 1)
 		, end(0)
 		, mask(sizeIn - 1)
+		, sem(1)
 	{
 #ifndef NO_CONFIRM_RINGBUF
 		try {
@@ -45,6 +47,7 @@ public:
 
 	T* Pull()
 	{
+		sem.acquire();
 #ifndef NO_CONFIRM_RINGBUF
 		try {
 			if (front+1  < end)
@@ -62,11 +65,13 @@ public:
 #endif // !NO_CONFIRM_RINGBUF
 		T** ppT = &ppBuf[end & mask];
 		++end;
+		sem.release();
 		return *ppT;
 	}
 
 	void Push(T* pT)
 	{
+		sem.acquire();
 #ifndef NO_CONFIRM_RINGBUF
 		try {
 			if (front + 1 == end +size)
@@ -84,6 +89,7 @@ public:
 #endif // !NO_CONFIRM_RINGBUF
 		++front;
 		ppBuf[front & mask] = pT;
+		sem.release();
 	}
 
 protected:
@@ -92,5 +98,6 @@ protected:
 	size_t front;
 	size_t end;
 	size_t mask;
+	std::binary_semaphore sem;
 };
 
