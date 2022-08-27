@@ -109,6 +109,10 @@ int main()
 
 		{
 			InitTP();
+			if (!BackTryConnect())
+			{
+				return 1;
+			}
 			StartListen();
 			for (;;)
 			{

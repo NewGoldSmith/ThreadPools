@@ -31,4 +31,5 @@ namespace FrontSevEv {
 
 	void WriteBack(SocketContext* pSocket);
 	BOOL BackTryConnect();
+	void BackClose();
 }

@@ -96,7 +96,6 @@ namespace FrontSevEv {
 					return;
 				}
 			}
-			return;
 		}
 		//BackがCloseした。
 		else if (NetworkEvents.lNetworkEvents & FD_CLOSE)
@@ -108,9 +107,11 @@ namespace FrontSevEv {
 			CloseThreadpoolWait(Wait);
 			return;
 		}
+
 		//正常終了セマフォ解放設定。
 		ReleaseSemaphoreWhenCallbackReturns(Instance, gpSem.get(), 1);
 		pBackSocket->pFrontSocket = NULL;
+
 		//次に呼ばれるまでプールに移動
 		BackContextPool.Push(pBackSocket);
 
@@ -282,7 +283,12 @@ namespace FrontSevEv {
 				return FALSE;
 			}
 			SetThreadpoolWait(pTPWait, pBackSocket->hEvent.get(), NULL);
+			//設定が済んだので再格納。
+			BackContextPool.Push(pBackSocket);
 		}
 		return TRUE;
+	}
+	void BackClose()
+	{
 	}
 }

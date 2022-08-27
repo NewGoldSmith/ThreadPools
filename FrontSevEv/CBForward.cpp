@@ -126,20 +126,16 @@ namespace FrontSevEv {
 	VOID OnEvSocketCB(PTP_CALLBACK_INSTANCE Instance, PVOID Context, PTP_WAIT Wait, TP_WAIT_RESULT WaitResult)
 	{
 		WSANETWORKEVENTS NetworkEvents{};
-		DWORD Err = 0;
 		DWORD dwBytes = 0;
 		SocketContext* pSocket = (SocketContext*)Context;
 
 		if (WSAEnumNetworkEvents(pSocket->hSocket, pSocket->hEvent, &NetworkEvents))
 		{
-			Err = WSAGetLastError();
-			if (Err != WSANOTINITIALISED)
-			{
-				stringstream  ss;
-				ss << "Socket Err: " << Err << "FILE NAME: " << __FILE__ << "LINE: " << __LINE__ << std::endl;
-				cerr << ss.str();
-				MyTRACE(ss.str().c_str());
-			}
+			DWORD Err = WSAGetLastError();
+			stringstream  ss;
+			ss << "FrontSevEv. WSAEnumNetworkEvents. Code: " << Err << "LINE: " << __LINE__ << std::endl;
+			cerr << ss.str();
+			MyTRACE(ss.str().c_str());
 			CloseThreadpoolWait(Wait);
 			return;
 		}
@@ -147,11 +143,11 @@ namespace FrontSevEv {
 		if (NetworkEvents.lNetworkEvents & FD_READ)
 		{
 			pSocket->Buf.resize(BUFFER_SIZE, '\0');
-			pSocket->Buf.resize(recv(pSocket->hSocket, pSocket->Buf.data(), pSocket->Buf.size(), 0));
-			if (pSocket->Buf.size()==SOCKET_ERROR)
+			int size=recv(pSocket->hSocket, pSocket->Buf.data(), pSocket->Buf.size(), 0);
+			if (size==SOCKET_ERROR)
 			{
 				pSocket->Buf.clear();
-				Err = WSAGetLastError();
+				DWORD Err = WSAGetLastError();
 				stringstream  ss;
 				ss << "Err! recv Code: " << Err << "FILE NAME: " << __FILE__ << " LINE: " << __LINE__ << std::endl;
 				cerr << ss.str();
@@ -161,7 +157,7 @@ namespace FrontSevEv {
 				CloseThreadpoolWait(Wait);
 				return;
 			}
-			else if (pSocket->Buf.size() == 0)
+			else if (size == 0)
 			{
 				//切断
 				pSocket->ReInitialize();
@@ -171,12 +167,13 @@ namespace FrontSevEv {
 			}
 			else {
 				//エコー開始
+				pSocket->Buf.resize(size);
 				pSocket->RemString += pSocket->Buf;
 				pSocket->Buf = SplitLastLineBreak(pSocket->RemString);
 				if (!pSocket->Buf.empty())
 				{
 					pSocket->Buf += "\r\n";
-					send(pSocket->hSocket, pSocket->Buf.data(), pSocket->Buf.size(), 0);
+					WriteBack(pSocket);
 				}
 				SetThreadpoolWait(Wait, pSocket->hEvent, NULL);
 				return;
@@ -360,7 +357,7 @@ namespace FrontSevEv {
 			++gCDel;
 			return false;
 		}
-		SetThreadpoolTimer(gpTPTimer, &*gp1000msecFT, 1000, 0);
+		//SetThreadpoolTimer(gpTPTimer, &*gp1000msecFT, 1000, 0);
 	}
 
 	void EndListen()
@@ -377,7 +374,8 @@ namespace FrontSevEv {
 		std::cout << "Current Connected: " << gID - gCDel - 1 << "\r\n";
 		std::cout << "Max Connecting: " << gMaxConnecting << "\r\n" ;
 		std::cout << "Max Accepted/Sec: " << gAcceptedPerSec << "\r\n";
-		std::cout << "Host: "<< HOST_FRONT_LISTEN_BASE_ADDR<<":"<<to_string(HOST_FRONT_LISTEN_PORT)<<"\r\n\r\n";
+		std::cout << "Host: "<< HOST_FRONT_LISTEN_BASE_ADDR<<":"<<to_string(HOST_FRONT_LISTEN_PORT)<<"\r\n";
+		cout << "Back Target Address: " << PEER_BACK_BASE_ADDR << ":" << to_string(PEER_BACK_PORT) << "\r\n\r\n";
 	}
 
 	void ClearStatus()

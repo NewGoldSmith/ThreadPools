@@ -241,7 +241,7 @@ namespace ThreadPoolCliantR {
 		PTP_WORK ptpwork(NULL);
 		for (int i = 0; i < NUM_THREAD; ++i)
 		{
-			gTryConnectContext[i].pAddr = HOST_FRONT_LISTEN_BASE_ADDR;
+			gTryConnectContext[i].pAddr = HOST_BASE_ADDR;
 			gTryConnectContext[i].inc = i;
 			if (!(ptpwork = CreateThreadpoolWork(TryConnectCB, (PVOID)&gTryConnectContext[i], &*pcbe)))
 			{
@@ -265,7 +265,7 @@ namespace ThreadPoolCliantR {
 		) << "\r\n";
 		std::cout << "Max Responce msec:" << gtMaxRepTime.load() << "\r\n";
 		cout << "Target Address: " << PEER_ADDR<<":"<<to_string(PEER_PORT)<<"\r\n";
-		cout << "Host Base Address: " << HOST_FRONT_LISTEN_BASE_ADDR << ":" << to_string(HOST_FRONT_LISTEN_PORT) << "\r\n";
+		cout << "Host Base Address: " << HOST_BASE_ADDR << ":" << to_string(HOST_PORT) << "\r\n";
 		cout << "Job Time:" << to_string(GetDeffSec(gJobEndTime, gJobStartTime)) << "."<<to_string(GetDeffmSec(gJobEndTime,gJobStartTime))<<"\r\n";
 		cout << "\r\n";
 	}
@@ -395,9 +395,9 @@ namespace ThreadPoolCliantR {
 		//ƒzƒXƒgsockeaddr_inÝ’è
 		struct sockaddr_in addr = { };
 		addr.sin_family = AF_INET;
-		addr.sin_port = htons(HOST_FRONT_LISTEN_PORT);
+		addr.sin_port = htons(HOST_PORT);
 		int addr_size = sizeof(addr.sin_addr);
-		int rVal = inet_pton(AF_INET, HOST_FRONT_LISTEN_BASE_ADDR, &(addr.sin_addr));
+		int rVal = inet_pton(AF_INET, HOST_BASE_ADDR, &(addr.sin_addr));
 		if (rVal != 1)
 		{
 			if (rVal == 0)
