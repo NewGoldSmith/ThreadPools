@@ -8,8 +8,10 @@ using namespace std;
 namespace FrontSevEv {
 	RoundContext::RoundContext()
 		:hSocket(NULL)
+		, ID(0)
 		, hEvent{ []() {return WSACreateEvent(); }(), WSACloseEvent }
 		, pFrontSocket(NULL)
+		, semConnectLock(1)
 	{
 		try {
 			if (hEvent.get() == WSA_INVALID_EVENT)
@@ -29,6 +31,7 @@ namespace FrontSevEv {
 	{
 		if (hSocket)
 		{
+			WSAEventSelect(hSocket, hEvent.get(), 0);
 			closesocket(hSocket);
 		}
 	}
@@ -37,10 +40,10 @@ namespace FrontSevEv {
 	{
 		if (hSocket)
 		{
+			WSAEventSelect(hSocket, hEvent.get(), 0);
 			closesocket(hSocket);
 			hSocket = NULL;
 		}
-		WSAResetEvent(hEvent.get());
 	}
 
 

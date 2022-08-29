@@ -22,6 +22,7 @@
 
 namespace FrontSevEv {
 	class SocketContext;
+	class RoundContext;
 	constexpr auto HOST_BACK_BASE_ADDR = "127.0.0.3";
 	constexpr auto PEER_BACK_BASE_ADDR = "127.0.0.10";
 	constexpr u_short PEER_BACK_PORT = 50000;
@@ -30,6 +31,7 @@ namespace FrontSevEv {
 	VOID WriteBackWaitCB(PTP_CALLBACK_INSTANCE Instance, PVOID Context, PTP_WAIT Wait, TP_WAIT_RESULT WaitResult);
 
 	void QueryBack(SocketContext* pSocket);
-	BOOL BackTryConnect();
+	BOOL InitBack();
+	BOOL BackTryConnect(RoundContext*pBackSocket);
 	void BackClose();
 }

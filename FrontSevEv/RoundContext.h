@@ -19,12 +19,16 @@ namespace FrontSevEv {
 	class SocketContext;
 	class RoundContext
 	{
+		friend SocketContext;
 	public:
 		RoundContext();
 		~RoundContext();
 		void ReInitialize();
 		SOCKET hSocket;
+		u_int ID;
 		SocketContext* pFrontSocket;
 		unique_ptr<remove_pointer_t<WSAEVENT>, decltype(WSACloseEvent)*> hEvent;
+	protected:
+		binary_semaphore semConnectLock;
 	};
 }

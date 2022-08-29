@@ -18,6 +18,7 @@ namespace ThreadPoolCliantR {
 		, hEvent(NULL)
 		, tSend{}
 		, tRecv{}
+		, pTPWait(NULL)
 	{
 		try {
 			hEvent = WSACreateEvent();
@@ -45,6 +46,11 @@ namespace ThreadPoolCliantR {
 
 	void SocketContext::ReInitialize()
 	{
+		if (pTPWait)
+		{
+			CloseThreadpoolWait(pTPWait);
+			pTPWait = NULL;
+		}
 		if (hSocket)
 		{
 			shutdown(hSocket, SD_SEND);

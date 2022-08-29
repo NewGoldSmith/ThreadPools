@@ -5,6 +5,7 @@
 #include "CBBack.h"
 using namespace std;
 namespace FrontSevEv {
+	atomic_uint gIDBack(0);
 	extern const std::unique_ptr
 		< TP_CALLBACK_ENVIRON
 		, decltype(DestroyThreadpoolEnvironment)*
@@ -38,7 +39,7 @@ namespace FrontSevEv {
 			if (Err != WSANOTINITIALISED)
 			{
 				stringstream  ss;
-				ss << "FrontSevEv. WSAEnumNetworkEvents. Code:"<<Err<<" LINE:" << __LINE__ << std::endl;
+				ss << "FrontSevEv. WSAEnumNetworkEvents. Code:" << Err << " LINE:" << __LINE__ << std::endl;
 				std::cerr << ss.str();
 				MyTRACE(ss.str().c_str());
 			}
@@ -51,13 +52,13 @@ namespace FrontSevEv {
 		{
 			pBackSocket->pFrontSocket->Buf.resize(BUFFER_SIZE, '\0');
 			//フロントのバッファに直接読み込み。
-			int size=recv(pBackSocket->hSocket, pBackSocket->pFrontSocket->Buf.data(), pBackSocket->pFrontSocket->Buf.size(), 0);
+			int size = recv(pBackSocket->hSocket, pBackSocket->pFrontSocket->Buf.data(), pBackSocket->pFrontSocket->Buf.size(), 0);
 			if (size == SOCKET_ERROR)
 			{
 				pBackSocket->pFrontSocket->Buf.clear();
 				Err = WSAGetLastError();
 				stringstream  ss;
-				ss << "FrontSevEv. WSAEnumNetworkEvents. recv Code: " << Err <<  " LINE: " << __LINE__ <<"\r\n";
+				ss << "FrontSevEv. WSAEnumNetworkEvents. recv Code: " << Err << " LINE: " << __LINE__ << "\r\n";
 				std::cerr << ss.str();
 				MyTRACE(ss.str().c_str());
 				pBackSocket->pFrontSocket->ReInitialize();
@@ -68,21 +69,36 @@ namespace FrontSevEv {
 			{
 				//切断
 				stringstream  ss;
-				ss << "FrontSevEv. WSAEnumNetworkEvents. recv size 0. Code: " << Err << " LINE: " << __LINE__ << "\r\n";
+				ss << "FrontSevEv. Back. WSAEnumNetworkEvents. recv size 0. Code: " << Err << " LINE: " << __LINE__ << "\r\n";
 				std::cerr << ss.str();
 				MyTRACE(ss.str().c_str());
 				//フロントソケットはクローズ
-				pBackSocket->pFrontSocket->ReInitialize();
-				gSocketsPool.Push(pBackSocket->pFrontSocket);
+				SocketContext* pSocket = pBackSocket->pFrontSocket;
 				pBackSocket->pFrontSocket = NULL;
-				//バックソケットは使用禁止にする為セマフォを空けない。
-				//イベントも停止。
+				pSocket->ReInitialize();
+				gSocketsPool.Push(pSocket);
+				pBackSocket->ReInitialize();
+				ss.clear();
+				if (!BackTryConnect(pBackSocket))
+				{
+					ss << "FrontSevEv. Back. Reconnect failure.ID:" << pBackSocket->ID << "\r\n";
+					MyTRACE(ss.str().c_str());
+					//バックソケットは使用禁止にする為セマフォを空けない。
+					//イベントも停止。
+					return;
+				}
+				ss << "FrontSevEv. Back. Reconnect success.ID:" << pBackSocket->ID << "\r\n";
+				MyTRACE(ss.str().c_str());
+				BackContextPool.Push(pBackSocket);
+
+				//正常終了セマフォ解放設定。
+				ReleaseSemaphoreWhenCallbackReturns(Instance, gpSem.get(), 1);
 				return;
 			}
 			else {
 				//クライアントへ返信
 				pBackSocket->pFrontSocket->Buf.resize(size);
-				int rsize =send(pBackSocket->pFrontSocket->hSocket, pBackSocket->pFrontSocket->Buf.data(), pBackSocket->pFrontSocket->Buf.size(), 0);
+				int rsize = send(pBackSocket->pFrontSocket->hSocket, pBackSocket->pFrontSocket->Buf.data(), pBackSocket->pFrontSocket->Buf.size(), 0);
 				if (rsize == SOCKET_ERROR)
 				{
 					pBackSocket->pFrontSocket->Buf.clear();
@@ -109,7 +125,7 @@ namespace FrontSevEv {
 			return;
 		}
 
-//待機オブジェクト再設定
+		//待機オブジェクト再設定
 		SetThreadpoolWait(Wait, pBackSocket->hEvent.get(), NULL);
 
 		//次に呼ばれるまでプールに移動
@@ -129,7 +145,7 @@ namespace FrontSevEv {
 		SocketContext* pSocket = (SocketContext*)Context;
 		if (WaitResult)
 		{
-			cerr << "FrontSevEv. WriteBackWaitCB. Code:" << to_string(WaitResult) << "\r\n";
+			cerr << "FrontSevEv. Back WriteBackWaitCB. Code:" << to_string(WaitResult) << "\r\n";
 			return;
 		}
 
@@ -147,7 +163,7 @@ namespace FrontSevEv {
 		{
 			DWORD Err = WSAGetLastError();
 			stringstream  ss;
-			ss << "FrontSevEv. send. Code:" << to_string(Err) << " LINE;" << __LINE__ << "\r\n";
+			ss << "FrontSevEv. Back send. Code:" << to_string(Err) << " LINE;" << __LINE__ << "\r\n";
 			cerr << ss.str();
 			MyTRACE(ss.str().c_str());
 			return;
@@ -165,14 +181,30 @@ namespace FrontSevEv {
 		if (!(pTPWait = CreateThreadpoolWait(WriteBackWaitCB, pSocket, &*pcbe)))
 		{
 			DWORD err = GetLastError();
-			cerr << "FrontSevEv. CreateThreadpoolWait. Code:" << to_string(err) << "__LINE__"<<__LINE__<<"\r\n";
+			cerr << "FrontSevEv. Back CreateThreadpoolWait. Code:" << to_string(err) << "__LINE__" << __LINE__ << "\r\n";
 			return;
 		}
 		SetThreadpoolWait(pTPWait, gpSem.get(), NULL);
 	}
 
-	BOOL BackTryConnect()
+	BOOL InitBack()
 	{
+		for (u_int i = 0; i < NUM_BACK_CONNECTION; ++i)
+		{
+			RoundContext* pBackSocket = BackContextPool.Pull();
+			if (!BackTryConnect(pBackSocket))
+			{
+				return FALSE;
+			}
+		}
+		return TRUE;
+	}
+
+	BOOL BackTryConnect(RoundContext* pBackSocket)
+	{
+		//デバック用ID
+		pBackSocket->ID = gIDBack++;
+
 		//ホストsockeaddr_in設定
 		struct sockaddr_in addr = { };
 		addr.sin_family = AF_INET;
@@ -184,7 +216,7 @@ namespace FrontSevEv {
 			if (rVal == 0)
 			{
 				stringstream  ss;
-				ss << "FrontSevEv. Back Socket:inet_pton input value invalided. LINE:"<< __LINE__<<"\r\n";
+				ss << "FrontSevEv. Back Socket:inet_pton input value invalided. LINE:" << __LINE__ << "\r\n";
 				cerr << ss.str();
 				MyTRACE(ss.str().c_str());
 				return FALSE;
@@ -193,7 +225,7 @@ namespace FrontSevEv {
 			{
 				DWORD Err = WSAGetLastError();
 				stringstream  ss;
-				ss << "FrontSevEv. socket error:inet_pton.Code:" << to_string(Err) << " LINE:"<<__LINE__ << "\r\n";
+				ss << "FrontSevEv. Back socket error:inet_pton.Code:" << to_string(Err) << " LINE:" << __LINE__ << "\r\n";
 				cerr << ss.str();
 				MyTRACE(ss.str().c_str());
 				return FALSE;
@@ -211,7 +243,7 @@ namespace FrontSevEv {
 			if (rVal == 0)
 			{
 				stringstream  ss;
-				ss << "FrontSevEv. socket error:inet_pton input value invalided. LINE:"<<__LINE__<<"\r\n";
+				ss << "FrontSevEv. Back socket error:inet_pton input value invalided. LINE:" << __LINE__ << "\r\n";
 				cerr << ss.str();
 				MyTRACE(ss.str().c_str());
 				return FALSE;
@@ -220,79 +252,74 @@ namespace FrontSevEv {
 			{
 				DWORD Err = WSAGetLastError();
 				stringstream  ss;
-				ss << "CliR. socket error:inet_pton.Code:" << to_string(Err) << " LINE:"<<__LINE__<<"\r\n";
+				ss << "FrontSevEv. Back socket error:inet_pton.Code:" << to_string(Err) << " LINE:" << __LINE__ << "\r\n";
 				cerr << ss.str();
 				MyTRACE(ss.str().c_str());
 				return FALSE;
 			}
 		}
 
-		for (u_int i = 0; i < NUM_BACK_CONNECTION; ++i)
+		if (((pBackSocket->hSocket = WSASocket(AF_INET, SOCK_STREAM, IPPROTO_TCP, NULL, 0, NULL/*WSA_FLAG_OVERLAPPED*/)) == INVALID_SOCKET))
 		{
-			RoundContext *pBackSocket = BackContextPool.Pull();
-
-			if (((pBackSocket->hSocket = WSASocket(AF_INET, SOCK_STREAM, IPPROTO_TCP, NULL, 0, NULL/*WSA_FLAG_OVERLAPPED*/)) == INVALID_SOCKET))
-			{
-				DWORD Err = WSAGetLastError();
-				stringstream  ss;
-				ss << "FrontSevEv. Back Socket WSASocket Error! Code:" << to_string(Err) << " Line: " << __LINE__ << "\r\n";
-				cerr << ss.str();
-				MyTRACE(ss.str().c_str());
-				return FALSE;
-			}
-
-			//ホストバインド
-			if (::bind(pBackSocket->hSocket, (struct sockaddr*)&(addr), sizeof(addr)) == SOCKET_ERROR)
-			{
-				DWORD Err = WSAGetLastError();
-				stringstream  ss;
-				ss << "FrontSevEv. bind Error! Code:" << std::to_string(Err) << " Line: " << __LINE__ << "\r\n";
-				cerr << ss.str();
-				MyTRACE(ss.str().c_str());
-				return FALSE;
-			}
-
-			//コネクト
-			if (connect(pBackSocket->hSocket, (SOCKADDR*)&Peeraddr, sizeof(Peeraddr)) == SOCKET_ERROR)
-			{
-				DWORD Err = WSAGetLastError();
-				if (Err != WSAEWOULDBLOCK && Err)
-				{
-					stringstream  ss;
-					ss << "FrontSevEv. connect Error. Code :" << std::to_string(Err) << " Line : " << __LINE__ << "\r\n";
-					cerr << ss.str();
-					MyTRACE(ss.str().c_str());
-					return FALSE;
-				}
-			}
-
-			//ソケットのイベント設定
-			if (WSAEventSelect(pBackSocket->hSocket, pBackSocket->hEvent.get(), /*FD_ACCEPT |*/ FD_CLOSE | FD_READ/* | FD_CONNECT | FD_WRITE*/) == SOCKET_ERROR)
-			{
-				DWORD Err = WSAGetLastError();
-				stringstream  ss;
-				ss << "FrontSevEv. WSAEventSelect. Code:" << to_string(Err) << " Line:" << __LINE__ << "\r\n";
-				cerr << ss.str();
-				MyTRACE(ss.str().c_str());
-				return FALSE;
-			}
-
-			//イベントハンドラの設定
-			PTP_WAIT pTPWait(NULL);
-			if (!(pTPWait = CreateThreadpoolWait(OnBackEvSocketCB, pBackSocket, &*pcbe)))
-			{
-				DWORD Err = GetLastError();
-				stringstream  ss;
-				ss << "FrontSevEv. CreateThreadpoolWait. CODE:"<<to_string(Err) << " Line:" << __LINE__ << "\r\n";
-				cerr << ss.str();
-				MyTRACE(ss.str().c_str());
-				return FALSE;
-			}
-			SetThreadpoolWait(pTPWait, pBackSocket->hEvent.get(), NULL);
-
-			//設定が済んだので再格納。
-			BackContextPool.Push(pBackSocket);
+			DWORD Err = WSAGetLastError();
+			stringstream  ss;
+			ss << "FrontSevEv. Back Socket WSASocket Error! Code:" << to_string(Err) << " Line: " << __LINE__ << "\r\n";
+			cerr << ss.str();
+			MyTRACE(ss.str().c_str());
+			return FALSE;
 		}
+
+		//ホストバインド
+		if (::bind(pBackSocket->hSocket, (struct sockaddr*)&(addr), sizeof(addr)) == SOCKET_ERROR)
+		{
+			DWORD Err = WSAGetLastError();
+			stringstream  ss;
+			ss << "FrontSevEv. Back bind Error! Code:" << std::to_string(Err) << " Line: " << __LINE__ << "\r\n";
+			cerr << ss.str();
+			MyTRACE(ss.str().c_str());
+			return FALSE;
+		}
+
+		//コネクト
+		if (connect(pBackSocket->hSocket, (SOCKADDR*)&Peeraddr, sizeof(Peeraddr)) == SOCKET_ERROR)
+		{
+			DWORD Err = WSAGetLastError();
+			if (Err != WSAEWOULDBLOCK && Err)
+			{
+				stringstream  ss;
+				ss << "FrontSevEv. Back connect Error. Code :" << std::to_string(Err) << " Line : " << __LINE__ << "\r\n";
+				cerr << ss.str();
+				MyTRACE(ss.str().c_str());
+				return FALSE;
+			}
+		}
+
+		//ソケットのイベント設定
+		if (WSAEventSelect(pBackSocket->hSocket, pBackSocket->hEvent.get(), /*FD_ACCEPT |*/ FD_CLOSE | FD_READ/* | FD_CONNECT | FD_WRITE*/) == SOCKET_ERROR)
+		{
+			DWORD Err = WSAGetLastError();
+			stringstream  ss;
+			ss << "FrontSevEv. Back WSAEventSelect. Code:" << to_string(Err) << " Line:" << __LINE__ << "\r\n";
+			cerr << ss.str();
+			MyTRACE(ss.str().c_str());
+			return FALSE;
+		}
+
+		//イベントハンドラの設定
+		PTP_WAIT pTPWait(NULL);
+		if (!(pTPWait = CreateThreadpoolWait(OnBackEvSocketCB, pBackSocket, &*pcbe)))
+		{
+			DWORD Err = GetLastError();
+			stringstream  ss;
+			ss << "FrontSevEv. Back CreateThreadpoolWait. CODE:" << to_string(Err) << " Line:" << __LINE__ << "\r\n";
+			cerr << ss.str();
+			MyTRACE(ss.str().c_str());
+			return FALSE;
+		}
+		SetThreadpoolWait(pTPWait, pBackSocket->hEvent.get(), NULL);
+
+		//設定が済んだので再格納。
+		BackContextPool.Push(pBackSocket);
 		return TRUE;
 	}
 

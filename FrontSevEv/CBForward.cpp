@@ -182,6 +182,7 @@ namespace FrontSevEv {
 
 		if (NetworkEvents.lNetworkEvents & FD_CLOSE)
 		{
+			MyTRACE(("FrontSevEv. Socket ID:" + to_string(pSocket->ID) + " Closed\r\n").c_str());
 			pSocket->ReInitialize();
 			gSocketsPool.Push(pSocket);
 			//接続数が０になるとステータスを表示。

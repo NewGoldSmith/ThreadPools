@@ -20,7 +20,7 @@
 namespace ThreadPoolCliantR {
 
 	constexpr auto BUFFER_SIZE = 1024;
-	constexpr auto N_COUNTDOWN = 4;
+	constexpr auto N_COUNTDOWN = 2;
 
 	class SocketContext {
 	public:
@@ -42,6 +42,7 @@ namespace ThreadPoolCliantR {
 		WSAEVENT hEvent;
 		FILETIME  tSend[N_COUNTDOWN + 1];
 		FILETIME  tRecv[N_COUNTDOWN + 1];
+		TP_WAIT* pTPWait;
 	};
 
 }

@@ -109,7 +109,7 @@ int main()
 
 		{
 			InitTP();
-			if (!BackTryConnect())
+			if (!InitBack())
 			{
 				return 1;
 			}

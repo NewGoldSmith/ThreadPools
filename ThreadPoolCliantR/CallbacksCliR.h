@@ -45,6 +45,12 @@ namespace ThreadPoolCliantR {
 		PTP_TIMER             Timer
 	);
 
+	VOID CALLBACK EndProccessTimerCB(
+		PTP_CALLBACK_INSTANCE Instance,
+		PVOID                 Context,
+		PTP_TIMER             Timer
+	);
+
 	/// <summary>
 	/// コンソール出力中に、他のスレッドから割り込まれて出力されないようにする。
 	/// </summary>

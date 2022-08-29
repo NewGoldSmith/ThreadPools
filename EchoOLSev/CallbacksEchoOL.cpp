@@ -119,7 +119,7 @@ namespace EchoOLSev {
 		//エラー確認
 		if (IoResult)
 		{
-			MyTRACE(("Err! OLSev OnListenCompCB Result:" + to_string(IoResult) + " Line:" + to_string(__LINE__) + "SocketID:" + to_string(pSocket->ID) + "\r\n").c_str());
+			MyTRACE(("Err! EchoOLSev. OnListenCompCB Result:" + to_string(IoResult) + " Line:" + to_string(__LINE__) + "SocketID:" + to_string(pSocket->ID) + "\r\n").c_str());
 			cout << "End Listen\r\n";
 			return;
 		}
@@ -132,12 +132,12 @@ namespace EchoOLSev {
 
 		if (!NumberOfBytesTransferred)
 		{
-			MyTRACE(("OLSev OnListenCompCB Socket" + to_string(pSocket->ID) + " Closed\r\n").c_str());
+			MyTRACE(("EchoOLSev OnListenCompCB Socket" + to_string(pSocket->ID) + " Closed\r\n").c_str());
 			CleanupSocket(pSocket);
 			//次のアクセプト
 			if (!PreAccept(pListenSocket))
 			{
-				cerr << "Err! OnListenCompCB. PreAccept.LINE:" << __LINE__ << "\r\n";
+				cerr << "EchoOLSev. OnListenCompCB. PreAccept.LINE:" << __LINE__ << "\r\n";
 				return;
 			}
 			return;
@@ -149,7 +149,7 @@ namespace EchoOLSev {
 		if (!(pSocket->pTPIo = CreateThreadpoolIo((HANDLE)pSocket->hSocket, OnSocketFrontNoticeCompCB, pSocket, &*pcbe)))
 		{
 			DWORD Err = GetLastError();
-			cerr << "Err! OnListenCompCB. CreateThreadpoolIo. CODE:" << to_string(Err) << "\r\n";
+			cerr << "EchoOLSev. OnListenCompCB. CreateThreadpoolIo. CODE:" << to_string(Err) << "\r\n";
 			CleanupSocket(pSocket);
 			return;
 		}
@@ -161,7 +161,7 @@ namespace EchoOLSev {
 		//次のアクセプト
 		if (!PreAccept(pListenSocket))
 		{
-			cerr << "Err! OnListenCompCB. PreAccept.LINE:" << __LINE__ << "\r\n";
+			cerr << "EchoOLSev. OnListenCompCB. PreAccept.LINE:" << __LINE__ << "\r\n";
 			return;
 		}
 
@@ -198,14 +198,14 @@ namespace EchoOLSev {
 		//エラー確認
 		if (IoResult)
 		{
-			MyTRACE(("Err! OLSev OnSocketFrontNoticeCompCB Code:" + to_string(IoResult) + " Line:" + to_string(__LINE__) + " SocketID:" + to_string(pSocket->ID) + "\r\n").c_str());
+			MyTRACE(("EchoOLSev. OnSocketFrontNoticeCompCB Code:" + to_string(IoResult) + " Line:" + to_string(__LINE__) + " SocketID:" + to_string(pSocket->ID) + "\r\n").c_str());
 			return;
 		}
 
 		//切断か確認。
 		if (!NumberOfBytesTransferred)
 		{
-			MyTRACE(("Socket ID:" + to_string(pSocket->ID) + " Closed\r\n").c_str());
+			MyTRACE(("EchoOLSev. Socket ID:" + to_string(pSocket->ID) + " Closed\r\n").c_str());
 			CleanupSocket(pSocket);
 			return;
 		}
@@ -267,7 +267,7 @@ namespace EchoOLSev {
 		{
 			DWORD Err = WSAGetLastError();
 			if (Err != WSA_IO_PENDING && Err) {
-				cerr << "Err! WSASend.Code:" << to_string(Err) << " LINE:" << __LINE__ << "\r\n";
+				cerr << "EchoOLSev. WSASend.Code:" << to_string(Err) << " LINE:" << __LINE__ << "\r\n";
 				CleanupSocket(pSocket);
 				return;
 			}
@@ -281,7 +281,7 @@ namespace EchoOLSev {
 		SocketContext* pSocket = (SocketContext*)Context;
 		if (!pSocket->hSocket)
 		{
-			MyTRACE("RecvWorkCB hSocket is NULL\r\n");
+			MyTRACE("EchoOLSev. RecvWorkCB hSocket is NULL\r\n");
 			return;
 		}
 		//受信体制を取る。
@@ -296,7 +296,7 @@ namespace EchoOLSev {
 			DWORD Err = WSAGetLastError();
 			if (Err != WSA_IO_PENDING && Err)
 			{
-				cerr << "Err! RecvWorkCB.Code:" << to_string(Err) << " LINE:" << __LINE__ << "\r\n";
+				cerr << "EchoOLSev. RecvWorkCB.Code:" << to_string(Err) << " LINE:" << __LINE__ << "\r\n";
 				CleanupSocket(pSocket);
 				return;
 			}
@@ -330,7 +330,7 @@ namespace EchoOLSev {
 			DWORD Err = WSAGetLastError();
 			if (Err != WSA_IO_PENDING && Err != 0)
 			{
-				cerr << "Err! Recv. Code:" << to_string(Err) << " LINE:" << __LINE__ << "\r\n";
+				cerr << "EchoOLSev. Recv. Code:" << to_string(Err) << " LINE:" << __LINE__ << "\r\n";
 				return FALSE;
 			}
 		}
@@ -551,7 +551,7 @@ namespace EchoOLSev {
 		SocketContext* pAcceptSocket = gSocketsPool.Pull();
 		//オープンソケット作成
 		if (!(pAcceptSocket->hSocket = WSASocket(AF_INET, SOCK_STREAM, IPPROTO_TCP, NULL, 0, WSA_FLAG_OVERLAPPED))) {
-			cerr << "Err WSASocket Code:" << to_string(WSAGetLastError()) << " Line:" << __LINE__ << "\r\n";
+			cerr << "EchoOLSev. WSASocket Code:" << to_string(WSAGetLastError()) << " Line:" << __LINE__ << "\r\n";
 			return false;
 		}
 

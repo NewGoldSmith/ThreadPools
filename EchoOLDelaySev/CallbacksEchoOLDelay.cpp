@@ -224,7 +224,7 @@ namespace EchoOLDelaySev {
 		//Ø’f‚©Šm”FB
 		if (!NumberOfBytesTransferred)
 		{
-			MyTRACE(("Socket ID:" + to_string(pSocket->ID) + " Closed\r\n").c_str());
+			MyTRACE(("EchoOLDalaySev. Socket ID:" + to_string(pSocket->ID) + " Closed\r\n").c_str());
 			CleanupSocket(pSocket);
 			return;
 		}
