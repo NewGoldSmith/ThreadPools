@@ -19,6 +19,7 @@ namespace ThreadPoolCliantR {
 		, tSend{}
 		, tRecv{}
 		, pTPWait(NULL)
+		, pTPTimer(NULL)
 	{
 		try {
 			hEvent = WSACreateEvent();
@@ -46,13 +47,31 @@ namespace ThreadPoolCliantR {
 
 	void SocketContext::ReInitialize()
 	{
+		if (pTPTimer)
+		{
+			SetThreadpoolTimer(pTPTimer, NULL, 0, 0);
+			WaitForThreadpoolTimerCallbacks(pTPTimer, TRUE);
+			CloseThreadpoolTimer(pTPTimer);
+			pTPTimer = NULL;
+		}
 		if (pTPWait)
 		{
+			SetThreadpoolWait(pTPWait, NULL, 0);
+			WaitForThreadpoolWaitCallbacks(pTPWait, TRUE);
 			CloseThreadpoolWait(pTPWait);
 			pTPWait = NULL;
 		}
 		if (hSocket)
 		{
+			//ソケットイベントを無しにする。
+			if (WSAEventSelect(hSocket, hEvent, 0) == SOCKET_ERROR)
+			{
+				DWORD Err = WSAGetLastError();
+				stringstream  ss;
+				ss << "ThreadPoolCliR. WSAEventSelect. Socket ID:" << ID << " Code:" << Err << " Line: " << __LINE__ << "\r\n";
+				cerr << ss.str();
+				MyTRACE(ss.str().c_str());
+			}
 			shutdown(hSocket, SD_SEND);
 			closesocket(hSocket);
 			hSocket = NULL;
@@ -62,6 +81,7 @@ namespace ThreadPoolCliantR {
 		ReadString.clear();
 		WriteString.clear();
 		RemString.clear();
+
 	}
 
 	ULONGLONG SocketContext::GetMaxResponce()

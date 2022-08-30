@@ -16,7 +16,7 @@
 #include <semaphore>
 #include <exception>
 #include "Main.h"
-#include "SocketContext.h"
+#include "ForwardContext.h"
 #include "RingBuf.h"
 #include <vector>
 
@@ -33,7 +33,7 @@ namespace FrontSevEv {
         TP_WAIT_RESULT WaitResult
     );
 
-    VOID CALLBACK OnEvSocketCB(
+    VOID CALLBACK OnEvSocketFrontCB(
         PTP_CALLBACK_INSTANCE Instance,
         PVOID                 Context,
         PTP_WAIT              Wait,
@@ -52,6 +52,7 @@ namespace FrontSevEv {
     void EndListen();
     void ShowStatus();
     void ClearStatus();
+    void DecStatusFront();
     std::string SplitLastLineBreak(std::string& str);
 
 #ifdef _DEBUG

@@ -76,6 +76,25 @@ namespace ThreadPoolCliantR {
 	};
 
 	const std::unique_ptr
+		< FILETIME
+		, void (*)(FILETIME*)
+		> gp5000msecFT
+	{ []()
+		{
+			const auto gp5000msecFT = new FILETIME;
+			ULARGE_INTEGER ulDueTime;
+			ulDueTime.QuadPart = (ULONGLONG)-(1 * 10 * 1000 * 1000 * 3);
+			gp5000msecFT->dwHighDateTime = ulDueTime.HighPart;
+			gp5000msecFT->dwLowDateTime = ulDueTime.LowPart;
+			return gp5000msecFT;
+		}()
+	,[](_Inout_ FILETIME* gp5000msecFT)
+		{
+			delete gp5000msecFT;
+		}
+	};
+
+	const std::unique_ptr
 		< TP_CALLBACK_ENVIRON
 		, decltype(DestroyThreadpoolEnvironment)*
 		> pcbe
@@ -141,6 +160,7 @@ namespace ThreadPoolCliantR {
 		DWORD Err = 0;
 		DWORD dwBytes = 0;
 		SocketContext* pSocket = (SocketContext*)Context;
+
 		if (WSAEnumNetworkEvents(pSocket->hSocket, pSocket->hEvent, &NetworkEvents))
 		{
 			DWORD Err = WSAGetLastError();
@@ -151,12 +171,37 @@ namespace ThreadPoolCliantR {
 			CloseThreadpoolWait(Wait);
 			pSocket->ReInitialize();
 			gSocketsPool.Push(pSocket);
-			++gCDel;
+			DecStatus();
 			return;
 		}
 
+		//最初はクローズか調べる。
+		if (NetworkEvents.lNetworkEvents & FD_CLOSE)
+		{
+			int iErrorCode =NetworkEvents.iErrorCode[FD_CLOSE_BIT];
+			stringstream  ss;
+			ss << "ThreadPoolCliR. OnEvSocketCB. Closed. " << "Socket ID: " << pSocket->ID <<" Code:"<< iErrorCode<< " LINE:"<<__LINE__<<"\r\n";
+			MyTRACE(ss.str().c_str());
+			pSocket->ReInitialize();
+			gSocketsPool.Push(pSocket);
+			DecStatus();
+			return;
+		}
+		
 		if (NetworkEvents.lNetworkEvents & FD_READ)
 		{
+			int iErrorCode = NetworkEvents.iErrorCode[FD_READ_BIT];
+			if (iErrorCode)
+			{
+				stringstream  ss;
+				ss << "ThreadPoolCliR. OnEvSocketCB. Event Read. " << "Socket ID: " << pSocket->ID << " Code:" << iErrorCode << " LINE:" << __LINE__ << "\r\n";
+				cerr << ss.str();
+				MyTRACE(ss.str().c_str());
+				DecStatus();
+				pSocket->ReInitialize();
+				gSocketsPool.Push(pSocket);
+				return;
+			}
 			//レシーブ
 			pSocket->ReadString.resize(BUFFER_SIZE, '\0');
 
@@ -166,8 +211,11 @@ namespace ThreadPoolCliantR {
 			{
 				pSocket->ReadString.clear();
 				Err = WSAGetLastError();
-				std::cerr << "Socket Err! Code:" << to_string(Err) << " LINE:" << __LINE__ << "\r\n";
-				CloseThreadpoolWait(Wait);
+				stringstream  ss;
+				ss << "ThreadPoolCliR. OnEvSocketCB. recv. Code:" << Err << " LINE:" << __LINE__ << "\r\n";
+				cerr << ss.str();
+				MyTRACE(ss.str().c_str());
+				DecStatus();
 				pSocket->ReInitialize();
 				gSocketsPool.Push(pSocket);
 				return;
@@ -175,10 +223,11 @@ namespace ThreadPoolCliantR {
 			else if (size == 0)
 			{
 				stringstream  ss;
-				ss << "ThreadPoolCliR. OnEvSocketCB. Socket ID:" << pSocket->ID << " Closed." << "\r\n";
+				ss << "ThreadPoolCliR. OnEvSocketCB. Socket ID:" << pSocket->ID << " recv size zero. Closed." << "\r\n";
 				std::cerr << ss.str();
 				MyTRACE(ss.str().c_str());
 				CloseThreadpoolWait(Wait);
+				DecStatus();
 				pSocket->ReInitialize();
 				gSocketsPool.Push(pSocket);
 				return;
@@ -200,9 +249,7 @@ namespace ThreadPoolCliantR {
 					MyTRACE(ss.str().c_str());
 					cerr << ss.str();
 				}
-				else {
-					SubmitThreadpoolWork(pTPWork);
-				}
+				SubmitThreadpoolWork(pTPWork);
 #endif
 				//レスポンス測定用。
 				u_int uiCount = pSocket->FindAndConfirmCountDownNumber(pSocket->DispString);
@@ -221,14 +268,14 @@ namespace ThreadPoolCliantR {
 						{
 							stringstream  ss;
 							ss << "ThreadPoolCliR. CreateThreadpoolTimer. Line: " << __LINE__ << "\r\n";
-							++gCDel;
 							cerr << ss.str();
 							MyTRACE(ss.str().c_str());
+							DecStatus();
 							pSocket->ReInitialize();
 							gSocketsPool.Push(pSocket);
 							return;
 						}
-						SetThreadpoolTimer(pTPTimer, &*gp3000msecFT, 0, NULL);
+						SetThreadpoolTimer(pTPTimer, &*gp5000msecFT, 0, NULL);
 						SetThreadpoolWait(Wait, pSocket->hEvent, NULL);
 						return;
 					}
@@ -241,18 +288,10 @@ namespace ThreadPoolCliantR {
 					CloseThreadpoolWait(Wait);
 					pSocket->ReInitialize();
 					gSocketsPool.Push(pSocket);
-					++gCDel;
+					DecStatus();
+					return;
 				}
 			}
-		}
-
-		if (NetworkEvents.lNetworkEvents & FD_CLOSE)
-		{
-			std::cout << "Socket is Closed " << "Socket ID: " << pSocket->ID << std::endl;
-			pSocket->ReInitialize();
-			gSocketsPool.Push(pSocket);
-			++gCDel;
-			return;
 		}
 		//接続ソケット待機イベント再設定。
 		SetThreadpoolWait(Wait, pSocket->hEvent, NULL);
@@ -284,7 +323,7 @@ namespace ThreadPoolCliantR {
 		using namespace ThreadPoolCliantR;
 		//Jobタイム開始時間測定
 		GetSystemTimeAsFileTime(&gJobStartTime);
-
+		cout << "Start Connecting.\r\n";
 		PTP_WORK ptpwork(NULL);
 		for (int i = 0; i < NUM_THREAD; ++i)
 		{
@@ -317,6 +356,21 @@ namespace ThreadPoolCliantR {
 		cout << "\r\n";
 	}
 
+	void DecStatus()
+	{
+		++gCDel;
+		if (!(gID - gCDel))
+		{
+
+
+			std::cout << "End Work" << "\r\n" << std::flush;
+
+			//ステータスを表示
+			std::cout << "\r\nstatus\r\n";
+			ShowStatus();
+		}
+	}
+
 	void ClearStatus()
 	{
 		gID = 0;
@@ -341,7 +395,7 @@ namespace ThreadPoolCliantR {
 		pSocket->CountDown = N_COUNTDOWN;
 		if (!MakeAndSendSocketMessage(pSocket))
 		{
-			++gCDel;
+			DecStatus();
 			pSocket->ReInitialize();
 			gSocketsPool.Push(pSocket);
 			return;
@@ -356,9 +410,9 @@ namespace ThreadPoolCliantR {
 		{
 			stringstream  ss;
 			ss << "err CreateThreadpoolTimer. Line: " << __LINE__ << "\r\n";
-			++gCDel;
 			cerr << ss.str();
 			MyTRACE(ss.str().c_str());
+			DecStatus();
 			pSocket->ReInitialize();
 			gSocketsPool.Push(pSocket);
 			return;
@@ -406,7 +460,7 @@ namespace ThreadPoolCliantR {
 		{
 			if (!MakeAndSendSocketMessage(pSocket))
 			{
-				++gCDel;
+				DecStatus();
 				pSocket->ReInitialize();
 				gSocketsPool.Push(pSocket);
 				return;
@@ -433,35 +487,13 @@ namespace ThreadPoolCliantR {
 		gtMaxRepTime.store(__max(gtMaxRepTime.load(), pSocket->GetMaxResponce()));
 		gtMinRepTime.store(__min(gtMinRepTime.load(), pSocket->GetMinResponce()));
 		stringstream  ss;
-		ss << "ThreadPoolCliR. Socket ID:" << pSocket->ID << " Closed by self.\r\n"; 					MyTRACE(ss.str().c_str());
+		ss << "ThreadPoolCliR. Socket ID:" << pSocket->ID << " Closed by self.\r\n";
+		MyTRACE(ss.str().c_str());
 
-		//ソケットイベントを無しにする。
-		if (WSAEventSelect(pSocket->hSocket, pSocket->hEvent, 0) == SOCKET_ERROR)
-		{
-			DWORD Err = WSAGetLastError();
-			stringstream  ss;
-			ss << "ThreadPoolCliR. WSAEventSelect. Socket ID:" << pSocket->ID << " Code:" << Err << " Line: " << __LINE__ << "\r\n";
-			cerr << ss.str();
-			MyTRACE(ss.str().c_str());
-			pSocket->ReInitialize();
-			gSocketsPool.Push(pSocket);
-			++gCDel;
-			return;
-		}
 		pSocket->ReInitialize();
 		gSocketsPool.Push(pSocket);
 
-		++gCDel;
-		if (!(gID - gCDel))
-		{
-
-
-			std::cout << "End Work" << "\r\n" << std::flush;
-
-			//ステータスを表示
-			std::cout << "\r\nstatus\r\n";
-			ShowStatus();
-		}
+		DecStatus();
 		return VOID();
 	}
 
@@ -549,11 +581,11 @@ namespace ThreadPoolCliantR {
 				pSocket->hSocket = NULL;
 				pSocket->ReInitialize();
 				gSocketsPool.Push(pSocket);
-				++gCDel;
 				stringstream  ss;
 				ss << "CliR. WSASocket Error! Code:" << to_string(Err) << " Line: " << __LINE__ << "\r\n";
 				cerr << ss.str();
 				MyTRACE(ss.str().c_str());
+				DecStatus();
 				return;
 			}
 
@@ -567,7 +599,7 @@ namespace ThreadPoolCliantR {
 				MyTRACE(ss.str().c_str());
 				pSocket->ReInitialize();
 				gSocketsPool.Push(pSocket);
-				++gCDel;
+				DecStatus();
 				return;
 			}
 
@@ -583,7 +615,7 @@ namespace ThreadPoolCliantR {
 					MyTRACE(ss.str().c_str());
 					pSocket->ReInitialize();
 					gSocketsPool.Push(pSocket);
-					++gCDel;
+					DecStatus();
 					return;
 				}
 			}
@@ -600,7 +632,7 @@ namespace ThreadPoolCliantR {
 				MyTRACE(ss.str().c_str());
 				pSocket->ReInitialize();
 				gSocketsPool.Push(pSocket);
-				++gCDel;
+				DecStatus();
 				return;
 			}
 
@@ -614,7 +646,7 @@ namespace ThreadPoolCliantR {
 				MyTRACE(ss.str().c_str());
 				pSocket->ReInitialize();
 				gSocketsPool.Push(pSocket);
-				++gCDel;
+				DecStatus();
 				return;
 			}
 			SetThreadpoolWait(pTPWait, pSocket->hEvent, NULL);

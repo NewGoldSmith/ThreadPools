@@ -21,7 +21,7 @@
     <ClCompile Include="CBForward.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
-    <ClCompile Include="SocketContext.cpp">
+    <ClCompile Include="ForwardContext.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
     <ClCompile Include="RoundContext.cpp">
@@ -41,7 +41,7 @@
     <ClInclude Include="RingBuf.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
-    <ClInclude Include="SocketContext.h">
+    <ClInclude Include="ForwardContext.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="RoundContext.h">

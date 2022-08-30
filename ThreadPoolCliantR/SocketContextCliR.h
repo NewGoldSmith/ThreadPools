@@ -12,16 +12,18 @@
 #include <iostream>
 #include <string>
 #include <semaphore>
+#include <mutex>
 #include <cassert>
 #include <exception>
 #include <SYS\Timeb.h >
 #include "CallbacksCliR.h"
 
 namespace ThreadPoolCliantR {
+	using namespace std;
 
 	constexpr auto BUFFER_SIZE = 1024;
-	constexpr auto N_COUNTDOWN = 2;
-
+	constexpr auto N_COUNTDOWN = 3;
+	mutex;
 	class SocketContext {
 	public:
 		SocketContext();
@@ -43,6 +45,8 @@ namespace ThreadPoolCliantR {
 		FILETIME  tSend[N_COUNTDOWN + 1];
 		FILETIME  tRecv[N_COUNTDOWN + 1];
 		TP_WAIT* pTPWait;
+		TP_TIMER* pTPTimer;
+	protected:
 	};
 
 }

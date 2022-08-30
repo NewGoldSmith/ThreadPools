@@ -11,6 +11,7 @@ namespace FrontSevEv {
 		, ID(0)
 		, hEvent{ []() {return WSACreateEvent(); }(), WSACloseEvent }
 		, pFrontSocket(NULL)
+		, pTPWait(NULL)
 		, semConnectLock(1)
 	{
 		try {
@@ -32,18 +33,28 @@ namespace FrontSevEv {
 		if (hSocket)
 		{
 			WSAEventSelect(hSocket, hEvent.get(), 0);
+			shutdown(hSocket, SD_SEND);
 			closesocket(hSocket);
 		}
 	}
 
 	void RoundContext::ReInitialize()
 	{
+		if (pTPWait)
+		{
+			SetThreadpoolWait(pTPWait, NULL, 0);
+			WaitForThreadpoolWaitCallbacks(pTPWait, TRUE);
+			CloseThreadpoolWait(pTPWait);
+			pTPWait = NULL;
+		}
 		if (hSocket)
 		{
 			WSAEventSelect(hSocket, hEvent.get(), 0);
+			shutdown(hSocket, SD_SEND);
 			closesocket(hSocket);
 			hSocket = NULL;
 		}
+		pFrontSocket = NULL;
 	}
 
 

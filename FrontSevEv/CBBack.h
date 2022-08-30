@@ -15,22 +15,22 @@
 #include <exception>
 #include <vector>
 #include "Main.h"
-#include "SocketContext.h"
+#include "ForwardContext.h"
 #include "RingBuf.h"
 #include "RoundContext.h"
 #include "CBForward.h"
 
 namespace FrontSevEv {
-	class SocketContext;
+	class ForwardContext;
 	class RoundContext;
 	constexpr auto HOST_BACK_BASE_ADDR = "127.0.0.3";
 	constexpr auto PEER_BACK_BASE_ADDR = "127.0.0.10";
 	constexpr u_short PEER_BACK_PORT = 50000;
-	constexpr u_int NUM_BACK_CONNECTION = 8;//Ç◊Ç´èÊ
+	constexpr u_int NUM_BACK_CONNECTION = 2;//Ç◊Ç´èÊ
 	VOID OnBackEvSocketCB(PTP_CALLBACK_INSTANCE Instance, PVOID Context, PTP_WAIT Wait, TP_WAIT_RESULT WaitResult);
 	VOID WriteBackWaitCB(PTP_CALLBACK_INSTANCE Instance, PVOID Context, PTP_WAIT Wait, TP_WAIT_RESULT WaitResult);
 
-	void QueryBack(SocketContext* pSocket);
+	void QueryBack(ForwardContext* pSocket);
 	BOOL InitBack();
 	BOOL BackTryConnect(RoundContext*pBackSocket);
 	void BackClose();

@@ -387,6 +387,12 @@ namespace ThreadPoolServerR {
 		ShowStatus();
 	}
 
+	void Cls()
+	{
+		cout << "\033[0;0H";
+		cout << "\033[2J";
+	}
+
 	std::string SplitLastLineBreak(std::string& str)
 	{
 		using namespace std;

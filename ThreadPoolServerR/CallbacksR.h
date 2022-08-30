@@ -51,6 +51,7 @@ namespace ThreadPoolServerR {
     void EndListen();
     void ShowStatus();
     void ClearStatus();
+    void Cls();
     std::string SplitLastLineBreak(std::string& str);
     FILETIME* Make1000mSecFileTime(FILETIME *pfiletime);
 

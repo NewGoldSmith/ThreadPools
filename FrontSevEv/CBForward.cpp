@@ -9,12 +9,12 @@ using namespace std;
 
 namespace FrontSevEv {
 	std::atomic_uint gAcceptedPerSec(0);
-	std::atomic_uint gID(0);
+	std::atomic_uint gID(1);
 	std::atomic_uint gCDel(0);
 	std::atomic_uint gMaxConnecting(0);
-	SocketContext gSockets[ELM_SIZE];
+	ForwardContext gSockets[ELM_SIZE];
 	RingBuf gSocketsPool(gSockets, ELM_SIZE);
-	SocketContext* gpListenSocket(NULL);
+	ForwardContext* gpListenSocket(NULL);
 	PTP_TIMER gpTPTimer(NULL);
 
 	extern const unique_ptr
@@ -70,7 +70,7 @@ namespace FrontSevEv {
 	VOID OnEvListenCB(PTP_CALLBACK_INSTANCE Instance, PVOID Context, PTP_WAIT Wait, TP_WAIT_RESULT WaitResult)
 	{
 
-		SocketContext* gpListenSocket = (SocketContext*)Context;
+		ForwardContext* gpListenSocket = (ForwardContext*)Context;
 		//デバック用ID==0か確認。ELM_SIZEがべき乗になっているか確認。
 		assert(gpListenSocket->ID == 0);
 
@@ -86,8 +86,8 @@ namespace FrontSevEv {
 
 		if (NetworkEvents.lNetworkEvents & FD_ACCEPT)
 		{
-			u_int uID(gID++);
-			SocketContext* pSocket = gSocketsPool.Pull();
+			atomic_uint uID(gID++);
+			ForwardContext* pSocket = gSocketsPool.Pull();
 			pSocket->ID = uID;
 			if ((pSocket->hSocket = accept(gpListenSocket->hSocket, NULL, NULL)) == INVALID_SOCKET)
 			{
@@ -96,6 +96,11 @@ namespace FrontSevEv {
 				ss << "SevID:" + std::to_string(pSocket->ID) + " accept. code:" + std::to_string(Err)+" File:"<<__FILE__<<" Line"<<  __LINE__ + "\r\n";
 				cerr << ss.str();
 				MyTRACE(ss.str().c_str());
+				DecStatusFront();
+				pSocket->ReInitialize();
+				gSocketsPool.Push(pSocket);
+				SetThreadpoolWait(gpListenSocket->ptpwaitOnEvListen, gpListenSocket->hEvent, NULL);
+				return;
 			}
 
 			//接続ソケットの通知イベントを設定。
@@ -105,6 +110,9 @@ namespace FrontSevEv {
 				ss << "SevID: " << std::to_string(pSocket->ID)<< "err:WSAEventSelect" << __FILE__ << __LINE__ << std::endl;
 				cerr << ss.str();
 				MyTRACE(ss.str().c_str());
+				DecStatusFront();
+				pSocket->ReInitialize();
+				gSocketsPool.Push(pSocket);
 				return;
 			}
 
@@ -112,31 +120,32 @@ namespace FrontSevEv {
 //			pSocket->vstr.push_back( "SevID:"+std::to_string(pSocket->ID)+" Success Accepted Socket.\r\n");
 
 			//イベントと待機コールバック関数の結びつけ。
-			PTP_WAIT pTPWait(NULL);
-			if (!(pTPWait = CreateThreadpoolWait(OnEvSocketCB, pSocket, &*pcbe)))
+			if (!(pSocket->pTPWait = CreateThreadpoolWait(OnEvSocketFrontCB, pSocket, &*pcbe)))
 				return;
 			//待機コールバック開始。
-			SetThreadpoolWait(pTPWait, pSocket->hEvent, NULL);
+			SetThreadpoolWait(pSocket->pTPWait, pSocket->hEvent, NULL);
 		}
 
 		//リッスンソケット待機イベント再設定。
 		SetThreadpoolWait(Wait, gpListenSocket->hEvent, NULL);
 	}
 
-	VOID OnEvSocketCB(PTP_CALLBACK_INSTANCE Instance, PVOID Context, PTP_WAIT Wait, TP_WAIT_RESULT WaitResult)
+	VOID OnEvSocketFrontCB(PTP_CALLBACK_INSTANCE Instance, PVOID Context, PTP_WAIT Wait, TP_WAIT_RESULT WaitResult)
 	{
 		WSANETWORKEVENTS NetworkEvents{};
 		DWORD dwBytes = 0;
-		SocketContext* pSocket = (SocketContext*)Context;
+		ForwardContext* pSocket = (ForwardContext*)Context;
 
 		if (WSAEnumNetworkEvents(pSocket->hSocket, pSocket->hEvent, &NetworkEvents))
 		{
 			DWORD Err = WSAGetLastError();
 			stringstream  ss;
-			ss << "FrontSevEv. WSAEnumNetworkEvents. Code: " << Err << "LINE: " << __LINE__ << std::endl;
+			ss << "FrontSevEv. Front. WSAEnumNetworkEvents. Code:" << Err << "LINE: " << __LINE__ << "\r\n";
 			cerr << ss.str();
 			MyTRACE(ss.str().c_str());
-			CloseThreadpoolWait(Wait);
+			DecStatusFront();
+			pSocket->ReInitialize();
+			gSocketsPool.Push(pSocket);
 			return;
 		}
 
@@ -149,30 +158,35 @@ namespace FrontSevEv {
 				pSocket->Buf.clear();
 				DWORD Err = WSAGetLastError();
 				stringstream  ss;
-				ss << "Err! recv Code: " << Err << "FILE NAME: " << __FILE__ << " LINE: " << __LINE__ << std::endl;
+				ss << "FrontSevEv. Front. recv. Code: " << Err << "FILE NAME: " << __FILE__ << " LINE: " << __LINE__ << std::endl;
 				cerr << ss.str();
 				MyTRACE(ss.str().c_str());
+				DecStatusFront();
 				pSocket->ReInitialize();
 				gSocketsPool.Push(pSocket);
-				CloseThreadpoolWait(Wait);
 				return;
 			}
 			else if (size == 0)
 			{
 				//切断
+				stringstream  ss;
+				ss << "FrontSevEv. Front. recv. size 0" << " LINE: " << __LINE__ << "\r\n";
+				cerr << ss.str();
+				MyTRACE(ss.str().c_str());
 				pSocket->ReInitialize();
+				DecStatusFront();
 				gSocketsPool.Push(pSocket);
-				CloseThreadpoolWait(Wait);
 				return;
 			}
 			else {
 				//エコー開始
 				pSocket->Buf.resize(size);
 				pSocket->RemString += pSocket->Buf;
-				pSocket->Buf = SplitLastLineBreak(pSocket->RemString);
-				if (!pSocket->Buf.empty())
+				string str =SplitLastLineBreak(pSocket->RemString);
+				if (!str.empty())
 				{
-					pSocket->Buf += "\r\n";
+					str += "\r\n";
+					pSocket->vBuf.push_back(str);
 					QueryBack(pSocket);
 				}
 				SetThreadpoolWait(Wait, pSocket->hEvent, NULL);
@@ -182,18 +196,15 @@ namespace FrontSevEv {
 
 		if (NetworkEvents.lNetworkEvents & FD_CLOSE)
 		{
-			MyTRACE(("FrontSevEv. Socket ID:" + to_string(pSocket->ID) + " Closed\r\n").c_str());
+			stringstream  ss;
+			ss<<("FrontSevEv. Socket ID:" + to_string(pSocket->ID) + " Closed\r\n").c_str();
+			cerr << ss.str();
+			MyTRACE(ss.str().c_str());
+			DecStatusFront();
 			pSocket->ReInitialize();
 			gSocketsPool.Push(pSocket);
-			//接続数が０になるとステータスを表示。
-			if (!(gID - (++gCDel) - 1))
-			{
-				ShowStatus();
-			}
-			CloseThreadpoolWait(Wait);
 			return;
 		}
-
 	}
 
 	VOID MeasureConnectedPerSecCB(PTP_CALLBACK_INSTANCE Instance, PVOID Context, PTP_TIMER Timer)
@@ -231,7 +242,7 @@ namespace FrontSevEv {
 	{
 		gpListenSocket = gSocketsPool.Pull();
 		//デバック用にIDをつける。リッスンソケットIDは0。
-		gpListenSocket->ID = gID++;
+		gpListenSocket->ID = 0;
 
 		//ソケット作成
 		WSAPROTOCOL_INFOA prot_info{};
@@ -240,7 +251,6 @@ namespace FrontSevEv {
 		{
 			gpListenSocket->ReInitialize();
 			gSocketsPool.Push(gpListenSocket);
-			++gCDel;
 			return false;
 		}
 
@@ -248,13 +258,12 @@ namespace FrontSevEv {
 		BOOL yes = 1;
 		if (setsockopt(gpListenSocket->hSocket, SOL_SOCKET, SO_REUSEADDR, (const char*)&yes, sizeof(yes)))
 		{
-			gpListenSocket->ReInitialize();
-			gSocketsPool.Push(gpListenSocket);
-			++gCDel;
 			stringstream  ss;
 			ss << "setsockopt Error! Line:" << __LINE__ << "\r\n";
 			cerr << ss.str();
 			MyTRACE(ss.str().c_str());
+			gpListenSocket->ReInitialize();
+			gSocketsPool.Push(gpListenSocket);
 			return false;
 		}
 
@@ -275,7 +284,6 @@ namespace FrontSevEv {
 				MyTRACE(ss.str().c_str());
 				gpListenSocket->ReInitialize();
 				gSocketsPool.Push(gpListenSocket);
-				++gCDel;
 				return false;
 			}
 			else if (rVal == -1)
@@ -287,7 +295,6 @@ namespace FrontSevEv {
 				MyTRACE(ss.str().c_str());
 				gpListenSocket->ReInitialize();
 				gSocketsPool.Push(gpListenSocket);
-				++gCDel;
 				return false;
 			}
 		}
@@ -301,7 +308,6 @@ namespace FrontSevEv {
 			MyTRACE(ss.str().c_str());
 			gpListenSocket->ReInitialize();
 			gSocketsPool.Push(gpListenSocket);
-			++gCDel;
 			return false;
 		}
 
@@ -314,7 +320,6 @@ namespace FrontSevEv {
 			MyTRACE(ss.str().c_str());
 			gpListenSocket->ReInitialize();
 			gSocketsPool.Push(gpListenSocket);
-			++gCDel;
 			return false;
 		}
 
@@ -327,7 +332,6 @@ namespace FrontSevEv {
 			MyTRACE(ss.str().c_str());
 			gpListenSocket->ReInitialize();
 			gSocketsPool.Push(gpListenSocket);
-			++gCDel;
 			return false;
 		}
 		SetThreadpoolWait(gpListenSocket->ptpwaitOnEvListen, gpListenSocket->hEvent, NULL);
@@ -342,7 +346,6 @@ namespace FrontSevEv {
 			MyTRACE(ss.str().c_str());
 			gpListenSocket->ReInitialize();
 			gSocketsPool.Push(gpListenSocket);
-			++gCDel;
 			return false;
 		}
 
@@ -355,7 +358,6 @@ namespace FrontSevEv {
 			MyTRACE(ss.str().c_str());
 			gpListenSocket->ReInitialize();
 			gSocketsPool.Push(gpListenSocket);
-			++gCDel;
 			return false;
 		}
 		SetThreadpoolTimer(gpTPTimer, &*gp1000msecFT, 1000, 0);
@@ -363,10 +365,8 @@ namespace FrontSevEv {
 
 	void EndListen()
 	{
-		WaitForThreadpoolTimerCallbacks(gpTPTimer, FALSE);
-		CloseThreadpoolTimer(gpTPTimer);
-
-		shutdown(gpListenSocket->hSocket, SD_SEND);
+		gpListenSocket->ReInitialize();
+		gSocketsPool.Push(gpListenSocket);
 	}
 
 	void ShowStatus()
@@ -386,6 +386,19 @@ namespace FrontSevEv {
 		gMaxConnecting = 0;
 		gAcceptedPerSec = 0;
 		ShowStatus();
+	}
+
+	void DecStatusFront()
+	{
+		++gCDel;
+		if (!(gID - gCDel-1))
+		{
+			cout << "End Work" << "\r\n";
+
+			//ステータスを表示
+			cout << "\r\nstatus\r\n";
+			ShowStatus();
+		}
 	}
 
 	std::string SplitLastLineBreak(std::string& str)

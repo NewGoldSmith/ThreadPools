@@ -15,25 +15,30 @@
 #include <semaphore>
 #include <cassert>
 #include <exception>
+#include <vector>
 #include "RoundContext.h"
 
 
 constexpr auto BUFFER_SIZE = 1024;
 
 namespace FrontSevEv {
+    using namespace std;
     class RoundContext;
-    class SocketContext {
+
+    class ForwardContext {
         friend RoundContext;
     public:
-        SocketContext();
-        ~SocketContext();
+        ForwardContext();
+        ~ForwardContext();
         void ReInitialize();
         SOCKET hSocket;
         u_short ID;
         std::string Buf;
+        vector<string> vBuf;
         std::string RemString;
         WSAEVENT hEvent;
         PTP_WAIT ptpwaitOnEvListen;
         RoundContext* RoundContext;
+        PTP_WAIT pTPWait;
     };
 }

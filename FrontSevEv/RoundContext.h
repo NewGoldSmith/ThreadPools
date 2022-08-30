@@ -12,22 +12,23 @@
 #include <vector>
 #include <semaphore>
 #include <algorithm>
-#include "SocketContext.h"
+#include "ForwardContext.h"
 #include "CBForward.h"
 using namespace std;
 namespace FrontSevEv {
-	class SocketContext;
+	class ForwardContext;
 	class RoundContext
 	{
-		friend SocketContext;
+		friend ForwardContext;
 	public:
 		RoundContext();
 		~RoundContext();
 		void ReInitialize();
 		SOCKET hSocket;
 		u_int ID;
-		SocketContext* pFrontSocket;
+		ForwardContext* pFrontSocket;
 		unique_ptr<remove_pointer_t<WSAEVENT>, decltype(WSACloseEvent)*> hEvent;
+		PTP_WAIT pTPWait;
 	protected:
 		binary_semaphore semConnectLock;
 	};
