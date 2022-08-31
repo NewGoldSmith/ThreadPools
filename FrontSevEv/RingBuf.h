@@ -6,6 +6,8 @@
 #include <exception>
 #include <semaphore>
 #include <atomic>
+#include <string>
+#define MyTRACE(lpsz) OutputDebugStringA(lpsz);
 
 //#define USING_CRITICAL_SECTION
 //#define NO_CONFIRM_RINGBUF
@@ -23,7 +25,7 @@ public:
 	RingBuf(T* pBufIn, size_t sizeIn)
 		:ppBuf(nullptr)
 		, size(sizeIn)
-		, front(sizeIn - 1)
+		, front(0)
 		, end(0)
 		, mask(sizeIn - 1)
 #ifdef USING_CRITICAL_SECTION
@@ -54,7 +56,7 @@ public:
 		InitializeCriticalSectionAndSpinCount(&cs, 400);
 #endif // USING_CRITICAL_SECTION
 
-		ppBuf = new T * [sizeIn+1];
+		ppBuf = new T * [sizeIn];
 		for (size_t i(0); i < size; ++i)
 		{
 			ppBuf[i] = &pBufIn[i];
@@ -77,8 +79,9 @@ public:
 		sem.acquire();
 #endif // !NOT_USING_SEMAPHORE_RINGBUF
 #ifndef NO_CONFIRM_RINGBUF
+		MyTRACE(("Pull front" + to_string(front) + " end " + to_string(end) + "\r\n").c_str());
 		try {
-			if (front+1  < end)
+			if (front+size  < end)
 			{
 				throw std::runtime_error("Err! RingBuf.Pull (front&mask)+1 == (end&mask)\r\n"); // 例外送出
 			}
@@ -111,8 +114,9 @@ public:
 		sem.acquire();
 #endif // !NOT_USING_SEMAPHORE_RINGBUF
 #ifndef NO_CONFIRM_RINGBUF
+		MyTRACE(("Push front " + to_string(front)+ " end " + to_string(end)+"\r\n").c_str());
 		try {
-			if (front + 1 == end +size)
+			if (front  == end +size)
 			{
 				throw std::runtime_error("Err! RingBuf.Push (front&mask) + 1 == (end&mask)\r\n"); // 例外送出
 			}
@@ -125,8 +129,8 @@ public:
 			std::rethrow_exception(ep);
 		}
 #endif // !NO_CONFIRM_RINGBUF
-		++front;
 		ppBuf[front & mask] = pT;
+		++front;
 #ifndef NOT_USING_SEMAPHORE_RINGBUF
 		sem.release();
 #endif // !NOT_USING_SEMAPHORE_RINGBUF
