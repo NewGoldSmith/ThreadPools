@@ -2,11 +2,23 @@
 //Released under the MIT license
 //https ://opensource.org/licenses/mit-license.php
 #pragma once
+#include <synchapi.h>
 #include <exception>
 #include <semaphore>
 #include <atomic>
+#include <string>
+//#define MyTRACE(lpsz) OutputDebugStringA(lpsz);
+#define MyTRACE __noop
+
+//#define USING_CRITICAL_SECTION
 //#define NO_CONFIRM_RINGBUF
-//#define NO_SUPPORT_MULTI_THREAD_RINGBUF
+//#define NOT_USING_SEMAPHORE_RINGBUF
+
+#ifdef USING_CRITICAL_SECTION
+#ifndef NOT_USING_SEMAPHORE_RINGBUF
+#define NOT_USING_SEMAPHORE_RINGBUF
+#endif
+#endif
 template <class T>class RingBuf
 {
 public:
@@ -14,12 +26,16 @@ public:
 	RingBuf(T* pBufIn, size_t sizeIn)
 		:ppBuf(nullptr)
 		, size(sizeIn)
-		, front(sizeIn - 1)
+		, front(0)
 		, end(0)
 		, mask(sizeIn - 1)
-#ifndef NO_SUPPORT_MULTI_THREAD_RINGBUF
+#ifdef USING_CRITICAL_SECTION
+		, cs{}		
+#endif // USING_CRITICAL_SECTION
+
+#ifndef NOT_USING_SEMAPHORE_RINGBUF
 		, sem(1)
-#endif // !NO_SUPPORT_MULTI_THREAD_RINGBUF
+#endif // !NOT_USING_SEMAPHORE_RINGBUF
 	{
 #ifndef NO_CONFIRM_RINGBUF
 		try {
@@ -36,11 +52,17 @@ public:
 			std::rethrow_exception(ep);
 		}
 #endif // !NO_CONFIRM_RINGBUF
+
+#ifdef USING_CRITICAL_SECTION
+		InitializeCriticalSectionAndSpinCount(&cs, 400);
+#endif // USING_CRITICAL_SECTION
+
 		ppBuf = new T * [sizeIn];
 		for (size_t i(0); i < size; ++i)
 		{
 			ppBuf[i] = &pBufIn[i];
 		}
+
 	}
 	RingBuf(RingBuf& obj) = delete;
 	RingBuf(RingBuf&& obj) = delete;
@@ -51,12 +73,16 @@ public:
 
 	T* Pull()
 	{
-#ifndef NO_SUPPORT_MULTI_THREAD_RINGBUF
+#ifdef USING_CRITICAL_SECTION
+		EnterCriticalSection(&cs);
+#endif // USING_CRITICAL_SECTION
+#ifndef NOT_USING_SEMAPHORE_RINGBUF
 		sem.acquire();
-#endif // !NO_SUPPORT_MULTI_THREAD_RINGBUF
+#endif // !NOT_USING_SEMAPHORE_RINGBUF
 #ifndef NO_CONFIRM_RINGBUF
+		MyTRACE(("Pull front" + to_string(front) + " end " + to_string(end) + "\r\n").c_str());
 		try {
-			if (front+1  < end)
+			if (front+size  < end)
 			{
 				throw std::runtime_error("Err! RingBuf.Pull (front&mask)+1 == (end&mask)\r\n"); // 例外送出
 			}
@@ -71,20 +97,27 @@ public:
 #endif // !NO_CONFIRM_RINGBUF
 		T** ppT = &ppBuf[end & mask];
 		++end;
-#ifndef NO_SUPPORT_MULTI_THREAD_RINGBUF
+#ifndef NOT_USING_SEMAPHORE_RINGBUF
 		sem.release();
-#endif // !NO_SUPPORT_MULTI_THREAD_RINGBUF
+#endif // !NOT_USING_SEMAPHORE_RINGBUF
+#ifdef USING_CRITICAL_SECTION
+		LeaveCriticalSection(&cs);
+#endif // USING_CRITICAL_SECTION
 		return *ppT;
 	}
 
 	void Push(T* pT)
 	{
-#ifndef NO_SUPPORT_MULTI_THREAD_RINGBUF
+#ifdef USING_CRITICAL_SECTION
+		EnterCriticalSection(&cs);
+#endif // USING_CRITICAL_SECTION
+#ifndef NOT_USING_SEMAPHORE_RINGBUF
 		sem.acquire();
-#endif // !NO_SUPPORT_MULTI_THREAD_RINGBUF
+#endif // !NOT_USING_SEMAPHORE_RINGBUF
 #ifndef NO_CONFIRM_RINGBUF
+		MyTRACE(("Push front " + to_string(front)+ " end " + to_string(end)+"\r\n").c_str());
 		try {
-			if (front + 1 == end +size)
+			if (front  == end +size)
 			{
 				throw std::runtime_error("Err! RingBuf.Push (front&mask) + 1 == (end&mask)\r\n"); // 例外送出
 			}
@@ -97,11 +130,14 @@ public:
 			std::rethrow_exception(ep);
 		}
 #endif // !NO_CONFIRM_RINGBUF
-		++front;
 		ppBuf[front & mask] = pT;
-#ifndef NO_SUPPORT_MULTI_THREAD_RINGBUF
+		++front;
+#ifndef NOT_USING_SEMAPHORE_RINGBUF
 		sem.release();
-#endif // !NO_SUPPORT_MULTI_THREAD_RINGBUF
+#endif // !NOT_USING_SEMAPHORE_RINGBUF
+#ifdef USING_CRITICAL_SECTION
+		LeaveCriticalSection(&cs);
+#endif // USING_CRITICAL_SECTION
 	}
 
 protected:
@@ -110,9 +146,13 @@ protected:
 	std::atomic_size_t front;
 	std::atomic_size_t end;
 	std::atomic_size_t mask;
-#ifndef NO_SUPPORT_MULTI_THREAD_RINGBUF
+#ifdef USING_CRITICAL_SECTION
+	CRITICAL_SECTION cs;
+#endif // USING_CRITICAL_SECTION
+
+#ifndef NOT_USING_SEMAPHORE_RINGBUF
 	std::binary_semaphore sem;
-#endif // !NO_SUPPORT_MULTI_THREAD_RINGBUF
+#endif // !NOT_USING_SEMAPHORE_RINGBUF
 
 };
 

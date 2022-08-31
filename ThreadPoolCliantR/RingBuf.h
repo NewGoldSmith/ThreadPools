@@ -7,7 +7,8 @@
 #include <semaphore>
 #include <atomic>
 #include <string>
-#define MyTRACE(lpsz) OutputDebugStringA(lpsz);
+//#define MyTRACE(lpsz) OutputDebugStringA(lpsz);
+#define MyTRACE __noop
 
 //#define USING_CRITICAL_SECTION
 //#define NO_CONFIRM_RINGBUF
