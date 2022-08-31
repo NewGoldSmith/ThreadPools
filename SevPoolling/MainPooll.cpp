@@ -113,6 +113,7 @@ int main()
 		{
 			std::string strin;
 			std::getline(std::cin, strin);
+			transform(strin.begin(), strin.end(), strin.begin(), tolower);
 			if (strin == "quit")
 			{
 				break;

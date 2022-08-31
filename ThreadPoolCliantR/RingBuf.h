@@ -10,7 +10,7 @@
 //#define MyTRACE(lpsz) OutputDebugStringA(lpsz);
 #define MyTRACE __noop
 
-//#define USING_CRITICAL_SECTION
+#define USING_CRITICAL_SECTION
 //#define NO_CONFIRM_RINGBUF
 //#define NOT_USING_SEMAPHORE_RINGBUF
 

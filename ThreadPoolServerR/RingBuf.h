@@ -11,7 +11,7 @@
 #define MyTRACE __noop
 
 //#define USING_CRITICAL_SECTION
-//#define NO_CONFIRM_RINGBUF
+#define NO_CONFIRM_RINGBUF
 //#define NOT_USING_SEMAPHORE_RINGBUF
 
 #ifdef USING_CRITICAL_SECTION
@@ -54,7 +54,7 @@ public:
 #endif // !NO_CONFIRM_RINGBUF
 
 #ifdef USING_CRITICAL_SECTION
-		InitializeCriticalSectionAndSpinCount(&cs, 400);
+		InitializeCriticalSectionAndSpinCount(&cs, 4000);
 #endif // USING_CRITICAL_SECTION
 
 		ppBuf = new T * [sizeIn];

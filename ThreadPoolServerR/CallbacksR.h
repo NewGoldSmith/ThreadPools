@@ -23,7 +23,7 @@
 namespace ThreadPoolServerR {
 
     constexpr auto ELM_SIZE = 0x4000;
-    constexpr auto HOST_BASE_ADDR= "127.0.0.10";
+    constexpr auto HOST_BASE_ADDR= "127.0.0.2";
     constexpr u_short HOST_LISTEN_PORT = 50000;
 
     VOID OnEvListenCB(
