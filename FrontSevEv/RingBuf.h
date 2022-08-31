@@ -2,9 +2,20 @@
 //Released under the MIT license
 //https ://opensource.org/licenses/mit-license.php
 #pragma once
+#include <synchapi.h>
 #include <exception>
 #include <semaphore>
+#include <atomic>
+
+//#define USING_CRITICAL_SECTION
 //#define NO_CONFIRM_RINGBUF
+//#define NOT_USING_SEMAPHORE_RINGBUF
+
+#ifdef USING_CRITICAL_SECTION
+#ifndef NOT_USING_SEMAPHORE_RINGBUF
+#define NOT_USING_SEMAPHORE_RINGBUF
+#endif
+#endif
 template <class T>class RingBuf
 {
 public:
@@ -15,7 +26,13 @@ public:
 		, front(sizeIn - 1)
 		, end(0)
 		, mask(sizeIn - 1)
+#ifdef USING_CRITICAL_SECTION
+		, cs{}		
+#endif // USING_CRITICAL_SECTION
+
+#ifndef NOT_USING_SEMAPHORE_RINGBUF
 		, sem(1)
+#endif // !NOT_USING_SEMAPHORE_RINGBUF
 	{
 #ifndef NO_CONFIRM_RINGBUF
 		try {
@@ -32,11 +49,17 @@ public:
 			std::rethrow_exception(ep);
 		}
 #endif // !NO_CONFIRM_RINGBUF
-		ppBuf = new T * [sizeIn];
+
+#ifdef USING_CRITICAL_SECTION
+		InitializeCriticalSectionAndSpinCount(&cs, 400);
+#endif // USING_CRITICAL_SECTION
+
+		ppBuf = new T * [sizeIn+1];
 		for (size_t i(0); i < size; ++i)
 		{
 			ppBuf[i] = &pBufIn[i];
 		}
+
 	}
 	RingBuf(RingBuf& obj) = delete;
 	RingBuf(RingBuf&& obj) = delete;
@@ -47,7 +70,12 @@ public:
 
 	T* Pull()
 	{
+#ifdef USING_CRITICAL_SECTION
+		EnterCriticalSection(&cs);
+#endif // USING_CRITICAL_SECTION
+#ifndef NOT_USING_SEMAPHORE_RINGBUF
 		sem.acquire();
+#endif // !NOT_USING_SEMAPHORE_RINGBUF
 #ifndef NO_CONFIRM_RINGBUF
 		try {
 			if (front+1  < end)
@@ -58,20 +86,30 @@ public:
 		catch (std::exception& e) {
 			// 例外を捕捉
 			// エラー理由を出力する
-			std::cerr << e.what() << std::endl;
+			std::cerr << e.what() ;
 			std::exception_ptr ep = std::current_exception();
 			std::rethrow_exception(ep);
 		}
 #endif // !NO_CONFIRM_RINGBUF
 		T** ppT = &ppBuf[end & mask];
 		++end;
+#ifndef NOT_USING_SEMAPHORE_RINGBUF
 		sem.release();
+#endif // !NOT_USING_SEMAPHORE_RINGBUF
+#ifdef USING_CRITICAL_SECTION
+		LeaveCriticalSection(&cs);
+#endif // USING_CRITICAL_SECTION
 		return *ppT;
 	}
 
 	void Push(T* pT)
 	{
+#ifdef USING_CRITICAL_SECTION
+		EnterCriticalSection(&cs);
+#endif // USING_CRITICAL_SECTION
+#ifndef NOT_USING_SEMAPHORE_RINGBUF
 		sem.acquire();
+#endif // !NOT_USING_SEMAPHORE_RINGBUF
 #ifndef NO_CONFIRM_RINGBUF
 		try {
 			if (front + 1 == end +size)
@@ -82,22 +120,34 @@ public:
 		catch (std::exception& e) {
 			// 例外を捕捉
 			// エラー理由を出力する
-			std::cerr << e.what() << "\r\n";
+			std::cerr << e.what() ;
 			std::exception_ptr ep = std::current_exception();
 			std::rethrow_exception(ep);
 		}
 #endif // !NO_CONFIRM_RINGBUF
 		++front;
 		ppBuf[front & mask] = pT;
+#ifndef NOT_USING_SEMAPHORE_RINGBUF
 		sem.release();
+#endif // !NOT_USING_SEMAPHORE_RINGBUF
+#ifdef USING_CRITICAL_SECTION
+		LeaveCriticalSection(&cs);
+#endif // USING_CRITICAL_SECTION
 	}
 
 protected:
 	T** ppBuf;
-	size_t size;
-	size_t front;
-	size_t end;
-	size_t mask;
+	std::atomic_size_t size;
+	std::atomic_size_t front;
+	std::atomic_size_t end;
+	std::atomic_size_t mask;
+#ifdef USING_CRITICAL_SECTION
+	CRITICAL_SECTION cs;
+#endif // USING_CRITICAL_SECTION
+
+#ifndef NOT_USING_SEMAPHORE_RINGBUF
 	std::binary_semaphore sem;
+#endif // !NOT_USING_SEMAPHORE_RINGBUF
+
 };
 

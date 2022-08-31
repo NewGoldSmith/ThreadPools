@@ -10,8 +10,9 @@ namespace FrontSevEv {
 	ForwardContext::ForwardContext()
 		:hSocket(NULL)
 		, ID(0)
-		,RemString(BUFFER_SIZE,'\0')
-		,Buf(BUFFER_SIZE,'\0')
+		, RemString(BUFFER_SIZE, '\0')
+		, ReadBuf(BUFFER_SIZE, '\0')
+		, vBufLock(1)
 		, hEvent(NULL)
 		, ptpwaitOnEvListen(NULL)
 		, RoundContext(NULL)
@@ -26,7 +27,7 @@ namespace FrontSevEv {
 			std::cout << e.what() << std::endl;
 		}
 		RemString.resize(0);
-		Buf.resize(0);
+		ReadBuf.resize(0);
 	};
 
 	ForwardContext::~ForwardContext()
@@ -69,7 +70,7 @@ namespace FrontSevEv {
 				DWORD Err = WSAGetLastError();
 				stringstream  ss;
 				ss << "FrontSevEv. WSAEventSelect. Socket ID:" << ID << " Code:" << Err << " Line: " << __LINE__ << "\r\n";
-				cerr << ss.str();
+				//cerr << ss.str();
 				MyTRACE(ss.str().c_str());
 			}
 			shutdown(hSocket, SD_SEND);
@@ -78,7 +79,8 @@ namespace FrontSevEv {
 		}
 		ID = 0;
 		RemString.clear();
-		Buf.clear();
+		ReadBuf.clear();
 		RoundContext = NULL;
+		vBufLock.release();
 	}
 }

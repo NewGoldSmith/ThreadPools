@@ -4,7 +4,9 @@
 #pragma once
 #include <exception>
 #include <semaphore>
+#include <atomic>
 //#define NO_CONFIRM_RINGBUF
+//#define NO_SUPPORT_MULTI_THREAD_RINGBUF
 template <class T>class RingBuf
 {
 public:
@@ -15,7 +17,9 @@ public:
 		, front(sizeIn - 1)
 		, end(0)
 		, mask(sizeIn - 1)
+#ifndef NO_SUPPORT_MULTI_THREAD_RINGBUF
 		, sem(1)
+#endif // !NO_SUPPORT_MULTI_THREAD_RINGBUF
 	{
 #ifndef NO_CONFIRM_RINGBUF
 		try {
@@ -47,7 +51,9 @@ public:
 
 	T* Pull()
 	{
+#ifndef NO_SUPPORT_MULTI_THREAD_RINGBUF
 		sem.acquire();
+#endif // !NO_SUPPORT_MULTI_THREAD_RINGBUF
 #ifndef NO_CONFIRM_RINGBUF
 		try {
 			if (front+1  < end)
@@ -58,20 +64,24 @@ public:
 		catch (std::exception& e) {
 			// 例外を捕捉
 			// エラー理由を出力する
-			std::cerr << e.what() << std::endl;
+			std::cerr << e.what() ;
 			std::exception_ptr ep = std::current_exception();
 			std::rethrow_exception(ep);
 		}
 #endif // !NO_CONFIRM_RINGBUF
 		T** ppT = &ppBuf[end & mask];
 		++end;
+#ifndef NO_SUPPORT_MULTI_THREAD_RINGBUF
 		sem.release();
+#endif // !NO_SUPPORT_MULTI_THREAD_RINGBUF
 		return *ppT;
 	}
 
 	void Push(T* pT)
 	{
+#ifndef NO_SUPPORT_MULTI_THREAD_RINGBUF
 		sem.acquire();
+#endif // !NO_SUPPORT_MULTI_THREAD_RINGBUF
 #ifndef NO_CONFIRM_RINGBUF
 		try {
 			if (front + 1 == end +size)
@@ -82,22 +92,27 @@ public:
 		catch (std::exception& e) {
 			// 例外を捕捉
 			// エラー理由を出力する
-			std::cerr << e.what() << "\r\n";
+			std::cerr << e.what() ;
 			std::exception_ptr ep = std::current_exception();
 			std::rethrow_exception(ep);
 		}
 #endif // !NO_CONFIRM_RINGBUF
 		++front;
 		ppBuf[front & mask] = pT;
+#ifndef NO_SUPPORT_MULTI_THREAD_RINGBUF
 		sem.release();
+#endif // !NO_SUPPORT_MULTI_THREAD_RINGBUF
 	}
 
 protected:
 	T** ppBuf;
-	size_t size;
-	size_t front;
-	size_t end;
-	size_t mask;
+	std::atomic_size_t size;
+	std::atomic_size_t front;
+	std::atomic_size_t end;
+	std::atomic_size_t mask;
+#ifndef NO_SUPPORT_MULTI_THREAD_RINGBUF
 	std::binary_semaphore sem;
+#endif // !NO_SUPPORT_MULTI_THREAD_RINGBUF
+
 };
 

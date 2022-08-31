@@ -65,6 +65,44 @@ int main()
 {
 	using namespace FrontSevEv;
 	FILETIME filetime{};
+
+	const std::unique_ptr
+		< DWORD
+		, void (*)(DWORD*)
+		> gpOldConsoleMode
+	{ []()
+		{
+			const auto gpOldConsoleMode = new DWORD;
+			HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
+			if (!GetConsoleMode(hOut, gpOldConsoleMode))
+			{
+				cerr << "Err!GetConsoleMode" << " LINE:" << to_string(__LINE__) << "\r\n";
+			}
+			DWORD ConModeOut =
+				0
+				| ENABLE_PROCESSED_OUTPUT
+				| ENABLE_WRAP_AT_EOL_OUTPUT
+				| ENABLE_VIRTUAL_TERMINAL_PROCESSING
+				//		|DISABLE_NEWLINE_AUTO_RETURN       
+				//		|ENABLE_LVB_GRID_WORLDWIDE
+				;
+			if (!SetConsoleMode(hOut, ConModeOut))
+			{
+				cerr << "Err!SetConsoleMode" << " LINE:" << to_string(__LINE__) << "\r\n";
+			}
+			return gpOldConsoleMode;
+		}()
+	,[](_Inout_ DWORD* gpOldConsoleMode)
+		{
+			HANDLE hOut = GetStdHandle(STD_OUTPUT_HANDLE);
+			if (!SetConsoleMode(hOut, *gpOldConsoleMode))
+			{
+				cerr << "Err!SetConsoleMode" << " LINE:" << to_string(__LINE__) << "\r\n";
+			}
+			delete gpOldConsoleMode;
+		}
+	};
+
 	const std::unique_ptr
 		< WSADATA
 		, void(*)(WSADATA*)
@@ -129,6 +167,10 @@ int main()
 				else if (strin == "clearstatus")
 				{
 					ClearStatus();
+				}
+				else if (strin == "cls")
+				{
+					Cls();
 				}
 			}
 			EndListen();

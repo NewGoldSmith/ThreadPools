@@ -52,6 +52,7 @@ namespace FrontSevEv {
     void EndListen();
     void ShowStatus();
     void ClearStatus();
+    void Cls();
     void DecStatusFront();
     std::string SplitLastLineBreak(std::string& str);
 

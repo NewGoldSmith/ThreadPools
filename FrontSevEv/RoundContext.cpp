@@ -49,6 +49,9 @@ namespace FrontSevEv {
 		}
 		if (hSocket)
 		{
+			stringstream  ss;
+			ss << "FrontSevEv. ReInitialize. Back Socket ID:" << ID << " Closed.\r\n";
+			MyTRACE(ss.str().c_str());
 			WSAEventSelect(hSocket, hEvent.get(), 0);
 			shutdown(hSocket, SD_SEND);
 			closesocket(hSocket);

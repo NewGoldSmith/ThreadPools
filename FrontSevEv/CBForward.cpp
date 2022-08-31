@@ -149,13 +149,25 @@ namespace FrontSevEv {
 			return;
 		}
 
+		if (NetworkEvents.lNetworkEvents & FD_CLOSE)
+		{
+			stringstream  ss;
+			ss << ("FrontSevEv. Socket ID:" + to_string(pSocket->ID) + " Closed\r\n").c_str();
+			//cerr << ss.str();
+			//MyTRACE(ss.str().c_str());
+			DecStatusFront();
+			pSocket->ReInitialize();
+			gSocketsPool.Push(pSocket);
+			return;
+		}
+
 		if (NetworkEvents.lNetworkEvents & FD_READ)
 		{
-			pSocket->Buf.resize(BUFFER_SIZE, '\0');
-			int size=recv(pSocket->hSocket, pSocket->Buf.data(), pSocket->Buf.size(), 0);
+			pSocket->ReadBuf.resize(BUFFER_SIZE, '\0');
+			int size=recv(pSocket->hSocket, pSocket->ReadBuf.data(), pSocket->ReadBuf.size(), 0);
 			if (size==SOCKET_ERROR)
 			{
-				pSocket->Buf.clear();
+				pSocket->ReadBuf.clear();
 				DWORD Err = WSAGetLastError();
 				stringstream  ss;
 				ss << "FrontSevEv. Front. recv. Code: " << Err << "FILE NAME: " << __FILE__ << " LINE: " << __LINE__ << std::endl;
@@ -180,30 +192,20 @@ namespace FrontSevEv {
 			}
 			else {
 				//エコー開始
-				pSocket->Buf.resize(size);
-				pSocket->RemString += pSocket->Buf;
+				pSocket->ReadBuf.resize(size);
+				pSocket->RemString += pSocket->ReadBuf;
 				string str =SplitLastLineBreak(pSocket->RemString);
 				if (!str.empty())
 				{
 					str += "\r\n";
+					pSocket->vBufLock.acquire();
 					pSocket->vBuf.push_back(str);
+					pSocket->vBufLock.release();
 					QueryBack(pSocket);
 				}
 				SetThreadpoolWait(Wait, pSocket->hEvent, NULL);
 				return;
 			}
-		}
-
-		if (NetworkEvents.lNetworkEvents & FD_CLOSE)
-		{
-			stringstream  ss;
-			ss<<("FrontSevEv. Socket ID:" + to_string(pSocket->ID) + " Closed\r\n").c_str();
-			cerr << ss.str();
-			MyTRACE(ss.str().c_str());
-			DecStatusFront();
-			pSocket->ReInitialize();
-			gSocketsPool.Push(pSocket);
-			return;
 		}
 	}
 
@@ -361,6 +363,7 @@ namespace FrontSevEv {
 			return false;
 		}
 		SetThreadpoolTimer(gpTPTimer, &*gp1000msecFT, 1000, 0);
+		return TRUE;
 	}
 
 	void EndListen()
@@ -386,6 +389,12 @@ namespace FrontSevEv {
 		gMaxConnecting = 0;
 		gAcceptedPerSec = 0;
 		ShowStatus();
+	}
+
+	void Cls()
+	{
+		cout << "\x1b[2J";
+		cout << "\x1b[0;0H";
 	}
 
 	void DecStatusFront()

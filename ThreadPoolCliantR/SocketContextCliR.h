@@ -22,8 +22,8 @@ namespace ThreadPoolCliantR {
 	using namespace std;
 
 	constexpr auto BUFFER_SIZE = 1024;
-	constexpr auto N_COUNTDOWN = 3;
-	mutex;
+	constexpr auto N_COUNTDOWN = 5;
+
 	class SocketContext {
 	public:
 		SocketContext();

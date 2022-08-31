@@ -25,9 +25,7 @@ namespace FrontSevEv {
 	extern 	RingBuf<ForwardContext> gSocketsPool;
 	RoundContext RC[NUM_BACK_CONNECTION];
 	RingBuf BackContextPool(RC, _countof(RC));
-
-	string gstr[ELM_SIZE];
-	RingBuf gStringPool(gstr, _countof(gstr));
+	atomic_uint gLostBackSocket(0);
 
 	VOID OnBackEvSocketCB(PTP_CALLBACK_INSTANCE Instance, PVOID Context, PTP_WAIT Wait, TP_WAIT_RESULT WaitResult)
 	{
@@ -53,7 +51,12 @@ namespace FrontSevEv {
 		//BackがCloseした。
 		if (NetworkEvents.lNetworkEvents & FD_CLOSE)
 		{
-			//フロントソケットはCloseし
+			//バックソケットはCloseした
+			stringstream  ss;
+			ss << "FrontSevEv. BackSocket ID:" << pBackSocket->ID << " Closed. LINE:" <<__LINE__<< "\r\n";
+			std::cerr << ss.str();
+			MyTRACE(ss.str().c_str());
+
 			DecStatusFront();
 			pBackSocket->pFrontSocket->ReInitialize();
 			gSocketsPool.Push(pBackSocket->pFrontSocket);
@@ -64,12 +67,14 @@ namespace FrontSevEv {
 			if (!BackTryConnect(pBackSocket))
 			{
 				stringstream  ss;
-				ss << "FrontSevEv. WSAEnumNetworkEvents.  Reconnect failure.ID:"<<pBackSocket->ID<< " LINE :" << __LINE__ <<"\r\n";
+				ss << "FrontSevEv. BackSocket. Stoped. ID:"<< pBackSocket->ID << " WSAEnumNetworkEvents.Reconnect failure."<< " LINE : " << __LINE__ <<"\r\n";
 				std::cerr << ss.str();
 				MyTRACE(ss.str().c_str());
 				//停止
 				while(TRUE)
-				{ }
+				{
+					++gLostBackSocket;
+				}
 			}
 			BackContextPool.Push(pBackSocket);
 			//セマフォ解放設定
@@ -80,13 +85,13 @@ namespace FrontSevEv {
 		//読み込み可能
 		if (NetworkEvents.lNetworkEvents & FD_READ)
 		{
-			pBackSocket->pFrontSocket->Buf.clear();
-			pBackSocket->pFrontSocket->Buf.resize(BUFFER_SIZE, '\0');
+			pBackSocket->pFrontSocket->ReadBuf.clear();
+			pBackSocket->pFrontSocket->ReadBuf.resize(BUFFER_SIZE, '\0');
 			//フロントのバッファに直接読み込み。
-			int size = recv(pBackSocket->hSocket, pBackSocket->pFrontSocket->Buf.data(), pBackSocket->pFrontSocket->Buf.size(), 0);
+			int size = recv(pBackSocket->hSocket, pBackSocket->pFrontSocket->ReadBuf.data(), pBackSocket->pFrontSocket->ReadBuf.size(), 0);
 			if (size == SOCKET_ERROR)
 			{
-				pBackSocket->pFrontSocket->Buf.clear();
+				pBackSocket->pFrontSocket->ReadBuf.clear();
 				Err = WSAGetLastError();
 				stringstream  ss;
 				ss << "FrontSevEv. Back recv Code: " << Err << " LINE: " << __LINE__ << "\r\n";
@@ -122,7 +127,9 @@ namespace FrontSevEv {
 					//バックソケットは使用禁止にする為セマフォを空けない。
 					//イベントも停止。
 					while(TRUE)
-					{ }
+					{
+						++gLostBackSocket;
+					}
 				}
 				ss << "FrontSevEv. Back. Reconnect success.ID:" << pBackSocket->ID << "\r\n";
 				MyTRACE(ss.str().c_str());
@@ -134,11 +141,11 @@ namespace FrontSevEv {
 			}
 
 			//クライアントへ返信
-			pBackSocket->pFrontSocket->Buf.resize(size);
-			int rsize = send(pBackSocket->pFrontSocket->hSocket, pBackSocket->pFrontSocket->Buf.data(), pBackSocket->pFrontSocket->Buf.size(), 0);
+			pBackSocket->pFrontSocket->ReadBuf.resize(size);
+			int rsize = send(pBackSocket->pFrontSocket->hSocket, pBackSocket->pFrontSocket->ReadBuf.data(), pBackSocket->pFrontSocket->ReadBuf.size(), 0);
 			if (rsize == SOCKET_ERROR)
 			{
-				pBackSocket->pFrontSocket->Buf.clear();
+				pBackSocket->pFrontSocket->ReadBuf.clear();
 				Err = WSAGetLastError();
 				stringstream  ss;
 				ss << "FrontSevEv. WSAEnumNetworkEvents. send Code: " << Err << " LINE: " << __LINE__ << "\r\n";
@@ -162,9 +169,6 @@ namespace FrontSevEv {
 		pBackSocket->pFrontSocket = NULL;
 		BackContextPool.Push(pBackSocket);
 
-		//待機オブジェクト解放		
-//		CloseThreadpoolWait(Wait);
-
 		//正常終了セマフォ解放設定。
 		ReleaseSemaphoreWhenCallbackReturns(Instance, gpSem.get(), 1);
 	}
@@ -185,8 +189,10 @@ namespace FrontSevEv {
 
 		//フロントソケットと結びつけ。
 		pBackSocket->pFrontSocket = pSocket;
+		pSocket->vBufLock.acquire();
 		string str = pSocket->vBuf.front();
 		pSocket->vBuf.erase(pSocket->vBuf.begin());
+		pSocket->vBufLock.release();
 		
 		//フロントのデータをバックに書き込み。
 		//返信はイベント設定されているので、OnBackEvSocketCBが呼ばれる。
@@ -213,6 +219,7 @@ namespace FrontSevEv {
 					ss << "Stop. Incompetent. BackSocket ID:" << pBackSocket->ID << " LINE:"<<__LINE__<<"\r\n";
 					cerr << ss.str();
 					MyTRACE(ss.str().c_str());
+					++gLostBackSocket;
 				}
 			}
 			//再接続後送信。
@@ -229,6 +236,7 @@ namespace FrontSevEv {
 					ss << "Stop. Incompetent. BackSocket ID:" << pBackSocket->ID << " LINE:" << __LINE__ << "\r\n";
 					cerr << ss.str();
 					MyTRACE(ss.str().c_str());
+					++gLostBackSocket;
 				}
 			}
 		}
@@ -368,8 +376,7 @@ namespace FrontSevEv {
 			return FALSE;
 		}
 
-		//イベントハンドラの設定
-
+		//コールバックイベントの設定
 		if (!(pBackSocket->pTPWait = CreateThreadpoolWait(OnBackEvSocketCB, pBackSocket, &*pcbe)))
 		{
 			DWORD Err = GetLastError();
@@ -388,6 +395,7 @@ namespace FrontSevEv {
 		for (u_int i = 0; i < NUM_BACK_CONNECTION; ++i)
 		{
 			RoundContext* pBackSocket = BackContextPool.Pull();
+			gLostBackSocket;
 
 			if (pBackSocket->hSocket)
 			{
