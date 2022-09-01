@@ -149,7 +149,11 @@ int main()
 			InitTP();
 			if (!InitBack())
 			{
-				return 1;
+				cout << "The back connection failed.\r\n";
+				cout << "How do you like?\r\n";
+			}
+			else {
+				cout << "Successful back connection.\r\n" <<"Back Target  Address: "<< PEER_BACK_BASE_ADDR << ":" << PEER_BACK_PORT << "\r\n";
 			}
 			StartListen();
 			for (;;)
@@ -171,6 +175,22 @@ int main()
 				else if (strin == "cls")
 				{
 					Cls();
+				}
+				else if (strin == "backclose")
+				{
+					BackClose();
+					cout << "Back connection closed.\r\n";
+				}
+				else if (strin == "backconnect")
+				{
+					BackClose();
+					if (InitBack())
+					{
+						cout << "Successful back connection.\r\n";
+					}
+					else {
+						cout << "Back connection failure.\r\n";
+					}
 				}
 			}
 			EndListen();

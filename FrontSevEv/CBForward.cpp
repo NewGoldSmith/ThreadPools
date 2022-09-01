@@ -261,7 +261,7 @@ namespace FrontSevEv {
 		if (setsockopt(gpListenSocket->hSocket, SOL_SOCKET, SO_REUSEADDR, (const char*)&yes, sizeof(yes)))
 		{
 			stringstream  ss;
-			ss << "setsockopt Error! Line:" << __LINE__ << "\r\n";
+			ss << "FrontSevEv. Front. setsockopt Error! Line:" << __LINE__ << "\r\n";
 			cerr << ss.str();
 			MyTRACE(ss.str().c_str());
 			gpListenSocket->ReInitialize();
@@ -281,7 +281,7 @@ namespace FrontSevEv {
 			if (rVal == 0)
 			{
 				stringstream  ss;
-				ss<< "socket error:Listen inet_pton return val 0\r\n";
+				ss<< "FrontSevEv. Front. Listen inet_pton return val 0\r\n";
 				cerr << ss.str();
 				MyTRACE(ss.str().c_str());
 				gpListenSocket->ReInitialize();
@@ -292,7 +292,7 @@ namespace FrontSevEv {
 			{
 				Err = WSAGetLastError();
 				stringstream  ss;
-				ss << "socket error:Listen return val is -1 by inet_pton. Code:"<<to_string(Err)<<"\r\n";
+				ss << "FrontSevEv. Front. Listen return val is -1 by inet_pton. Code:"<<to_string(Err)<<"\r\n";
 				cerr << ss.str();
 				MyTRACE(ss.str().c_str());
 				gpListenSocket->ReInitialize();
@@ -305,7 +305,7 @@ namespace FrontSevEv {
 		{
 			Err = WSAGetLastError();
 			stringstream  ss;
-			ss << "Err! Listen Socket bind. Code:" << to_string(rVal) << " LINE:" << __LINE__ << "\r\n";
+			ss << "FrontSevEv. Front. Listen Socket bind. Code:" << to_string(rVal) << " LINE:" << __LINE__ << "\r\n";
 			cerr << ss.str();
 			MyTRACE(ss.str().c_str());
 			gpListenSocket->ReInitialize();
@@ -317,7 +317,7 @@ namespace FrontSevEv {
 		if (WSAEventSelect(gpListenSocket->hSocket, gpListenSocket->hEvent, FD_ACCEPT/* | FD_CLOSE | FD_READ | FD_CONNECT | FD_WRITE*/))
 		{
 			stringstream  ss;
-			ss << "Err! Listen Socket WSAEventSelect. Code:" << to_string(WSAGetLastError()) << "LINE:" << __LINE__ << "\r\n";
+			ss << "FrontSevEv. Front. Listen Socket WSAEventSelect. Code:" << to_string(WSAGetLastError()) << "LINE:" << __LINE__ << "\r\n";
 			cerr << ss.str();
 			MyTRACE(ss.str().c_str());
 			gpListenSocket->ReInitialize();
@@ -329,7 +329,7 @@ namespace FrontSevEv {
 		if (!(gpListenSocket->ptpwaitOnEvListen = CreateThreadpoolWait(OnEvListenCB, gpListenSocket, &*pcbe)))
 		{
 			stringstream  ss;
-			ss << "Err! Listen Socket CreateThreadpoolWait. Code:" << to_string(WSAGetLastError()) << "__LINE__" << __LINE__ << "\r\n";
+			ss << "FrontSevEv. Front. Listen Socket CreateThreadpoolWait. Code:" << to_string(WSAGetLastError()) << "__LINE__" << __LINE__ << "\r\n";
 			cerr << ss.str();
 			MyTRACE(ss.str().c_str());
 			gpListenSocket->ReInitialize();
@@ -337,13 +337,12 @@ namespace FrontSevEv {
 			return false;
 		}
 		SetThreadpoolWait(gpListenSocket->ptpwaitOnEvListen, gpListenSocket->hEvent, NULL);
-		std::cout << "Listen Start\r\n"<<HOST_FRONT_LISTEN_BASE_ADDR<<":"<<to_string(HOST_FRONT_LISTEN_PORT)<<"\r\n";
 
 		//リッスン
 		if (listen(gpListenSocket->hSocket, SOMAXCONN))
 		{
 			stringstream  ss;
-			ss << "Err! Listen Socket listen. Code:" << to_string(WSAGetLastError()) << " LINE:" << __LINE__ << "\r\n";
+			ss << "FrontSevEv. Front. Listen Socket listen. Code:" << to_string(WSAGetLastError()) << " LINE:" << __LINE__ << "\r\n";
 			cerr << ss.str();
 			MyTRACE(ss.str().c_str());
 			gpListenSocket->ReInitialize();
@@ -351,11 +350,15 @@ namespace FrontSevEv {
 			return false;
 		}
 
+		//成功したので表示。
+		cout << "Listen Start\r\n";
+		cout <<"Listen Address: " << HOST_FRONT_LISTEN_BASE_ADDR << ":" << to_string(HOST_FRONT_LISTEN_PORT) << "\r\n";
+
 		// Accepted/sec測定用タイマーコールバック設定
 		if (!(gpTPTimer = CreateThreadpoolTimer(MeasureConnectedPerSecCB, &gAcceptedPerSec, &*pcbe)))
 		{
 			stringstream  ss;
-			ss << "err:CreateThreadpoolTimer. Code:"<<to_string(WSAGetLastError())<<" LINE:" << __LINE__ << "\r\n";
+			ss << "FrontSevEv. Front. CreateThreadpoolTimer. Code:"<<to_string(WSAGetLastError())<<" LINE:" << __LINE__ << "\r\n";
 			cerr << ss.str();
 			MyTRACE(ss.str().c_str());
 			gpListenSocket->ReInitialize();
@@ -379,6 +382,7 @@ namespace FrontSevEv {
 		std::cout << "Max Connecting: " << gMaxConnecting << "\r\n" ;
 		std::cout << "Max Accepted/Sec: " << gAcceptedPerSec << "\r\n";
 		std::cout << "Host: "<< HOST_FRONT_LISTEN_BASE_ADDR<<":"<<to_string(HOST_FRONT_LISTEN_PORT)<<"\r\n";
+		cout << "Listen Address: " << HOST_FRONT_LISTEN_BASE_ADDR << ":" << to_string(HOST_FRONT_LISTEN_PORT) << "\r\n";
 		cout << "Back Target Address: " << PEER_BACK_BASE_ADDR << ":" << to_string(PEER_BACK_PORT) << "\r\n\r\n";
 	}
 
