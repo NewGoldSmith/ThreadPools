@@ -172,6 +172,21 @@ int main()
 				{
 					Cls();
 				}
+				else if (strin == "backreconnect")
+				{
+					if (BackReConnect())
+					{
+						cout << "\r\nSuccessful reconnection.\r\n\r\n";
+					}
+					else {
+						cout << "\r\nRe -connection failure.\r\n\r\n";
+					}
+				}
+				else if (strin == "backclose")
+				{
+					BackClose();
+					cout << "\r\nThe back is closed.\r\n\r\n";
+				}
 			}
 			EndListen();
 			BackClose();

@@ -1,6 +1,12 @@
 //Copyright (c) 2022, Gold Smith
 //Released under the MIT license
 //https ://opensource.org/licenses/mit-license.php
+
+//************************************
+//Warning!
+//This must be used on Power of Two.
+//************************************
+
 #pragma once
 #include <synchapi.h>
 #include <exception>
@@ -11,7 +17,7 @@
 #define MyTRACE __noop
 
 //#define USING_CRITICAL_SECTION
-#define NO_CONFIRM_RINGBUF
+//#define NO_CONFIRM_RINGBUF
 //#define NOT_USING_SEMAPHORE_RINGBUF
 
 #ifdef USING_CRITICAL_SECTION
@@ -37,7 +43,6 @@ public:
 		, sem(1)
 #endif // !NOT_USING_SEMAPHORE_RINGBUF
 	{
-#ifndef NO_CONFIRM_RINGBUF
 		try {
 
 			if ((sizeIn & mask) != 0)
@@ -51,10 +56,9 @@ public:
 			std::exception_ptr ep = std::current_exception();
 			std::rethrow_exception(ep);
 		}
-#endif // !NO_CONFIRM_RINGBUF
 
 #ifdef USING_CRITICAL_SECTION
-		InitializeCriticalSectionAndSpinCount(&cs, 4000);
+		InitializeCriticalSectionAndSpinCount(&cs, 400);
 #endif // USING_CRITICAL_SECTION
 
 		ppBuf = new T * [sizeIn];

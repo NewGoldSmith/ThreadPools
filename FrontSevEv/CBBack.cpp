@@ -53,7 +53,7 @@ namespace FrontSevEv {
 		{
 			//バックソケットはCloseした
 			stringstream  ss;
-			ss << "FrontSevEv. BackSocket ID:" << pBackSocket->ID << " Closed. LINE:" <<__LINE__<< "\r\n";
+			ss << "FrontSevEv. BackSocket ID:" << pBackSocket->ID << " Closed. LINE:" << __LINE__ << "\r\n";
 			std::cerr << ss.str();
 			MyTRACE(ss.str().c_str());
 
@@ -67,11 +67,11 @@ namespace FrontSevEv {
 			if (!BackTryConnect(pBackSocket))
 			{
 				stringstream  ss;
-				ss << "FrontSevEv. BackSocket. Stoped. ID:"<< pBackSocket->ID << " WSAEnumNetworkEvents.Reconnect failure."<< " LINE : " << __LINE__ <<"\r\n";
+				ss << "FrontSevEv. BackSocket. Stoped. ID:" << pBackSocket->ID << " WSAEnumNetworkEvents.Reconnect failure." << " LINE : " << __LINE__ << "\r\n";
 				std::cerr << ss.str();
 				MyTRACE(ss.str().c_str());
 				//停止
-				while(TRUE)
+				while (TRUE)
 				{
 					++gLostBackSocket;
 				}
@@ -112,7 +112,7 @@ namespace FrontSevEv {
 				std::cerr << ss.str();
 				MyTRACE(ss.str().c_str());
 				//フロントソケットはクローズ
-				ForwardContext* pFrontSocket=pBackSocket->pFrontSocket;
+				ForwardContext* pFrontSocket = pBackSocket->pFrontSocket;
 				pBackSocket->pFrontSocket = NULL;
 				DecStatusFront();
 				pFrontSocket->ReInitialize();
@@ -126,7 +126,7 @@ namespace FrontSevEv {
 					MyTRACE(ss.str().c_str());
 					//バックソケットは使用禁止にする為セマフォを空けない。
 					//イベントも停止。
-					while(TRUE)
+					while (TRUE)
 					{
 						++gLostBackSocket;
 					}
@@ -193,7 +193,7 @@ namespace FrontSevEv {
 		string str = pSocket->vBuf.front();
 		pSocket->vBuf.erase(pSocket->vBuf.begin());
 		pSocket->vBufLock.release();
-		
+
 		//フロントのデータをバックに書き込み。
 		//返信はイベント設定されているので、OnBackEvSocketCBが呼ばれる。
 		//ContextはRoundContext
@@ -216,7 +216,7 @@ namespace FrontSevEv {
 				{
 					stringstream  ss;
 					//不能な為、STOP
-					ss << "Stop. Incompetent. BackSocket ID:" << pBackSocket->ID << " LINE:"<<__LINE__<<"\r\n";
+					ss << "Stop. Incompetent. BackSocket ID:" << pBackSocket->ID << " LINE:" << __LINE__ << "\r\n";
 					cerr << ss.str();
 					MyTRACE(ss.str().c_str());
 					++gLostBackSocket;
@@ -401,6 +401,12 @@ namespace FrontSevEv {
 			{
 				pBackSocket->ReInitialize();
 			}
+			BackContextPool.Push(pBackSocket);
 		}
+	}
+	BOOL BackReConnect()
+	{
+		BackClose();
+		return InitBack();
 	}
 }
