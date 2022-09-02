@@ -22,7 +22,7 @@
 
 namespace FrontSevEv {
 
-    constexpr u_int ELM_SIZE = 0x4000;
+    constexpr u_int ELM_SIZE = 0x8000;
     constexpr auto HOST_FRONT_LISTEN_BASE_ADDR= "127.0.0.2";
     constexpr u_short HOST_FRONT_LISTEN_PORT = 50000;
 

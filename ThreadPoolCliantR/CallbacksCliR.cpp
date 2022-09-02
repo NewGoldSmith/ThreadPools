@@ -541,7 +541,7 @@ namespace ThreadPoolCliantR {
 			}
 		}
 		//ベースアドレスからincだけ増加する
-		addr.sin_addr.S_un.S_un_b.s_b4 += pContext->inc;
+		//addr.sin_addr.S_un.S_un_b.s_b4 += pContext->inc;
 
 		//サーバー接続用のsockaddr_inを設定
 		struct sockaddr_in Peeraddr = { };
