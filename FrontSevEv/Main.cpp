@@ -149,7 +149,7 @@ int main()
 			InitTP();
 			if (!InitBack())
 			{
-				return 1;
+				cout << "Connection failed to the back target.\r\n";
 			}
 			StartListen();
 			for (;;)

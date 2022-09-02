@@ -352,17 +352,17 @@ namespace FrontSevEv {
 		}
 
 		// Accepted/sec測定用タイマーコールバック設定
-		//if (!(gpTPTimer = CreateThreadpoolTimer(MeasureConnectedPerSecCB, &gAcceptedPerSec, &*pcbe)))
-		//{
-		//	stringstream  ss;
-		//	ss << "err:CreateThreadpoolTimer. Code:"<<to_string(WSAGetLastError())<<" LINE:" << __LINE__ << "\r\n";
-		//	cerr << ss.str();
-		//	MyTRACE(ss.str().c_str());
-		//	gpListenSocket->ReInitialize();
-		//	gSocketsPool.Push(gpListenSocket);
-		//	return false;
-		//}
-		//SetThreadpoolTimer(gpTPTimer, &*gp1000msecFT, 1000, 0);
+		if (!(gpTPTimer = CreateThreadpoolTimer(MeasureConnectedPerSecCB, &gAcceptedPerSec, &*pcbe)))
+		{
+			stringstream  ss;
+			ss << "err:CreateThreadpoolTimer. Code:"<<to_string(WSAGetLastError())<<" LINE:" << __LINE__ << "\r\n";
+			cerr << ss.str();
+			MyTRACE(ss.str().c_str());
+			gpListenSocket->ReInitialize();
+			gSocketsPool.Push(gpListenSocket);
+			return false;
+		}
+		SetThreadpoolTimer(gpTPTimer, &*gp1000msecFT, 1000, 0);
 		return TRUE;
 	}
 
