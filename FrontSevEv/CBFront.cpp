@@ -3,7 +3,7 @@
 //https ://opensource.org/licenses/mit-license.php
 
 //Server side
-#include "CBForward.h"
+#include "CBFront.h"
 
 using namespace std;
 
@@ -12,9 +12,9 @@ namespace FrontSevEv {
 	std::atomic_uint gID(1);
 	std::atomic_uint gCDel(0);
 	std::atomic_uint gMaxConnecting(0);
-	ForwardContext gSockets[ELM_SIZE];
+	FrontContext gSockets[ELM_SIZE];
 	RingBuf gSocketsPool(gSockets, ELM_SIZE);
-	ForwardContext* gpListenSocket(NULL);
+	FrontContext* gpListenSocket(NULL);
 	PTP_TIMER gpTPTimer(NULL);
 
 	extern const unique_ptr
@@ -70,7 +70,7 @@ namespace FrontSevEv {
 	VOID OnEvListenCB(PTP_CALLBACK_INSTANCE Instance, PVOID Context, PTP_WAIT Wait, TP_WAIT_RESULT WaitResult)
 	{
 
-		ForwardContext* gpListenSocket = (ForwardContext*)Context;
+		FrontContext* gpListenSocket = (FrontContext*)Context;
 		//デバック用ID==0か確認。ELM_SIZEがべき乗になっているか確認。
 		assert(gpListenSocket->ID == 0);
 
@@ -87,7 +87,7 @@ namespace FrontSevEv {
 		if (NetworkEvents.lNetworkEvents & FD_ACCEPT)
 		{
 			atomic_uint uID(gID++);
-			ForwardContext* pSocket = gSocketsPool.Pull();
+			FrontContext* pSocket = gSocketsPool.Pull();
 			pSocket->ID = uID;
 			if ((pSocket->hSocket = accept(gpListenSocket->hSocket, NULL, NULL)) == INVALID_SOCKET)
 			{
@@ -134,7 +134,7 @@ namespace FrontSevEv {
 	{
 		WSANETWORKEVENTS NetworkEvents{};
 		DWORD dwBytes = 0;
-		ForwardContext* pSocket = (ForwardContext*)Context;
+		FrontContext* pSocket = (FrontContext*)Context;
 
 		if (WSAEnumNetworkEvents(pSocket->hSocket, pSocket->hEvent, &NetworkEvents))
 		{

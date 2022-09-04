@@ -3,11 +3,11 @@
 //https ://opensource.org/licenses/mit-license.php
 
 //Server side
-#include "ForwardContext.h"
+#include "FrontContext.h"
 
 namespace FrontSevEv {
 
-	ForwardContext::ForwardContext()
+	FrontContext::FrontContext()
 		:hSocket(NULL)
 		, ID(0)
 		, RemString(BUFFER_SIZE, '\0')
@@ -15,13 +15,13 @@ namespace FrontSevEv {
 		, vBufLock(1)
 		, hEvent(NULL)
 		, ptpwaitOnEvListen(NULL)
-		, RoundContext(NULL)
+		, BackContext(NULL)
 		, pTPWait(NULL)
 	{
 		try {
 			hEvent = WSACreateEvent();
 			if (!hEvent)
-				throw std::runtime_error("error! ForwardContext::ForwardContext() WSACreateEvent()");
+				throw std::runtime_error("error! FrontContext::FrontContext() WSACreateEvent()");
 		}
 		catch (std::exception& e) {
 			std::cout << e.what() << std::endl;
@@ -30,7 +30,7 @@ namespace FrontSevEv {
 		ReadBuf.resize(0);
 	};
 
-	ForwardContext::~ForwardContext()
+	FrontContext::~FrontContext()
 	{
 		if (ptpwaitOnEvListen)
 		{
@@ -46,7 +46,7 @@ namespace FrontSevEv {
 			hSocket = NULL;
 		}
 	}
-	void ForwardContext::ReInitialize()
+	void FrontContext::ReInitialize()
 	{
 		if (pTPWait)
 		{
@@ -80,7 +80,7 @@ namespace FrontSevEv {
 		ID = 0;
 		RemString.clear();
 		ReadBuf.clear();
-		RoundContext = NULL;
+		BackContext = NULL;
 		vBufLock.release();
 	}
 }

@@ -18,13 +18,13 @@
     <ClCompile Include="Main.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
-    <ClCompile Include="CBForward.cpp">
+    <ClCompile Include="CBFront.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
-    <ClCompile Include="ForwardContext.cpp">
+    <ClCompile Include="FrontContext.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
-    <ClCompile Include="RoundContext.cpp">
+    <ClCompile Include="BackContext.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
     <ClCompile Include="CBBack.cpp">
@@ -35,16 +35,16 @@
     <ClInclude Include="Main.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
-    <ClInclude Include="CBForward.h">
+    <ClInclude Include="CBFront.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="RingBuf.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
-    <ClInclude Include="ForwardContext.h">
+    <ClInclude Include="FrontContext.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
-    <ClInclude Include="RoundContext.h">
+    <ClInclude Include="BackContext.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
     <ClInclude Include="CBBack.h">

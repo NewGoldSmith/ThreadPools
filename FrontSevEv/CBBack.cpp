@@ -22,8 +22,8 @@ namespace FrontSevEv {
 		,
 		CloseHandle
 	};
-	extern 	RingBuf<ForwardContext> gSocketsPool;
-	RoundContext RC[NUM_BACK_CONNECTION];
+	extern 	RingBuf<FrontContext> gSocketsPool;
+	BackContext RC[NUM_BACK_CONNECTION];
 	RingBuf BackContextPool(RC, _countof(RC));
 	atomic_uint gLostBackSocket(0);
 
@@ -32,7 +32,7 @@ namespace FrontSevEv {
 		WSANETWORKEVENTS NetworkEvents{};
 		DWORD Err = 0;
 		DWORD dwBytes = 0;
-		RoundContext* pBackSocket = (RoundContext*)Context;
+		BackContext* pBackSocket = (BackContext*)Context;
 
 		if (WSAEnumNetworkEvents(pBackSocket->hSocket, pBackSocket->hEvent.get(), &NetworkEvents))
 		{
@@ -112,7 +112,7 @@ namespace FrontSevEv {
 				std::cerr << ss.str();
 				MyTRACE(ss.str().c_str());
 				//フロントソケットはクローズ
-				ForwardContext* pFrontSocket=pBackSocket->pFrontSocket;
+				FrontContext* pFrontSocket=pBackSocket->pFrontSocket;
 				pBackSocket->pFrontSocket = NULL;
 				DecStatusFront();
 				pFrontSocket->ReInitialize();
@@ -176,7 +176,7 @@ namespace FrontSevEv {
 	//セマフォで書き込みの順番が回ってきた。
 	VOID WriteBackWaitCB(PTP_CALLBACK_INSTANCE Instance, PVOID Context, PTP_WAIT Wait, TP_WAIT_RESULT WaitResult)
 	{
-		ForwardContext* pSocket = (ForwardContext*)Context;
+		FrontContext* pSocket = (FrontContext*)Context;
 		if (WaitResult)
 		{
 			cerr << "FrontSevEv. Back WriteBackWaitCB. Code:" << to_string(WaitResult) << "\r\n";
@@ -185,7 +185,7 @@ namespace FrontSevEv {
 
 		//セマフォが空いているからこのコールバックが呼ばれたので在るはず。
 		//pRCは共有でNUM_BACK_CONNECTIONの数しかない。
-		RoundContext* pBackSocket = BackContextPool.Pull();
+		BackContext* pBackSocket = BackContextPool.Pull();
 
 		//フロントソケットと結びつけ。
 		pBackSocket->pFrontSocket = pSocket;
@@ -244,7 +244,7 @@ namespace FrontSevEv {
 	}
 
 	//ライトからリードまでが一つの流れ
-	void QueryBack(ForwardContext* pSocket)
+	void QueryBack(FrontContext* pSocket)
 	{
 		//セマフォの待機関数としてセットする。
 		if (!(pSocket->pTPWait = CreateThreadpoolWait(WriteBackWaitCB, pSocket, &*pcbe)))
@@ -260,7 +260,7 @@ namespace FrontSevEv {
 	{
 		for (u_int i = 0; i < NUM_BACK_CONNECTION; ++i)
 		{
-			RoundContext* pBackSocket = BackContextPool.Pull();
+			BackContext* pBackSocket = BackContextPool.Pull();
 			if (!BackTryConnect(pBackSocket))
 			{
 				return FALSE;
@@ -271,7 +271,7 @@ namespace FrontSevEv {
 		return TRUE;
 	}
 
-	BOOL BackTryConnect(RoundContext* pBackSocket)
+	BOOL BackTryConnect(BackContext* pBackSocket)
 	{
 		//デバック用ID
 		pBackSocket->ID = gIDBack++;
@@ -394,7 +394,7 @@ namespace FrontSevEv {
 	{
 		for (u_int i = 0; i < NUM_BACK_CONNECTION; ++i)
 		{
-			RoundContext* pBackSocket = BackContextPool.Pull();
+			BackContext* pBackSocket = BackContextPool.Pull();
 			gLostBackSocket;
 
 			if (pBackSocket->hSocket)

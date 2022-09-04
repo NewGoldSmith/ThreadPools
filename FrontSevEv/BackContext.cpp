@@ -2,11 +2,11 @@
 //Released under the MIT license
 //https ://opensource.org/licenses/mit-license.php
 
-#include "RoundContext.h"
+#include "BackContext.h"
 
 using namespace std;
 namespace FrontSevEv {
-	RoundContext::RoundContext()
+	BackContext::BackContext()
 		:hSocket(NULL)
 		, ID(0)
 		, hEvent{ []() {return WSACreateEvent(); }(), WSACloseEvent }
@@ -28,7 +28,7 @@ namespace FrontSevEv {
 		};
 	}
 
-	RoundContext::~RoundContext()
+	BackContext::~BackContext()
 	{
 		if (hSocket)
 		{
@@ -38,7 +38,7 @@ namespace FrontSevEv {
 		}
 	}
 
-	void RoundContext::ReInitialize()
+	void BackContext::ReInitialize()
 	{
 		if (pTPWait)
 		{

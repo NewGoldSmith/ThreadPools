@@ -12,21 +12,21 @@
 #include <vector>
 #include <semaphore>
 #include <algorithm>
-#include "ForwardContext.h"
-#include "CBForward.h"
+#include "FrontContext.h"
+#include "CBFront.h"
 using namespace std;
 namespace FrontSevEv {
-	class ForwardContext;
-	class RoundContext
+	class FrontContext;
+	class BackContext
 	{
-		friend ForwardContext;
+		friend FrontContext;
 	public:
-		RoundContext();
-		~RoundContext();
+		BackContext();
+		~BackContext();
 		void ReInitialize();
 		SOCKET hSocket;
 		u_int ID;
-		ForwardContext* pFrontSocket;
+		FrontContext* pFrontSocket;
 		unique_ptr<remove_pointer_t<WSAEVENT>, decltype(WSACloseEvent)*> hEvent;
 		PTP_WAIT pTPWait;
 	protected:

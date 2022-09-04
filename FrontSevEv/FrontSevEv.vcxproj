@@ -164,18 +164,18 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="CBBack.cpp" />
-    <ClCompile Include="CBForward.cpp" />
+    <ClCompile Include="CBFront.cpp" />
     <ClCompile Include="Main.cpp" />
-    <ClCompile Include="RoundContext.cpp" />
-    <ClCompile Include="ForwardContext.cpp" />
+    <ClCompile Include="BackContext.cpp" />
+    <ClCompile Include="FrontContext.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="CBBack.h" />
-    <ClInclude Include="CBForward.h" />
+    <ClInclude Include="CBFront.h" />
     <ClInclude Include="Main.h" />
     <ClInclude Include="RingBuf.h" />
-    <ClInclude Include="RoundContext.h" />
-    <ClInclude Include="ForwardContext.h" />
+    <ClInclude Include="BackContext.h" />
+    <ClInclude Include="FrontContext.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

@@ -16,20 +16,20 @@
 #include <cassert>
 #include <exception>
 #include <vector>
-#include "RoundContext.h"
+#include "BackContext.h"
 
 
 constexpr auto BUFFER_SIZE = 1024;
 
 namespace FrontSevEv {
     using namespace std;
-    class RoundContext;
+    class BackContext;
 
-    class ForwardContext {
-        friend RoundContext;
+    class FrontContext {
+        friend BackContext;
     public:
-        ForwardContext();
-        ~ForwardContext();
+        FrontContext();
+        ~FrontContext();
         void ReInitialize();
         SOCKET hSocket;
         u_short ID;
@@ -39,7 +39,7 @@ namespace FrontSevEv {
         std::string RemString;
         WSAEVENT hEvent;
         PTP_WAIT ptpwaitOnEvListen;
-        RoundContext* RoundContext;
+        BackContext* BackContext;
         PTP_WAIT pTPWait;
     };
 }
