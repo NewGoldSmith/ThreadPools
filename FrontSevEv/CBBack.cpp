@@ -57,41 +57,29 @@ namespace FrontSevEv {
 			std::cerr << ss.str();
 			MyTRACE(ss.str().c_str());
 
-			DecStatusFront();
-			pBackSocket->pFrontSocket->ReInitialize();
-			gSocketsPool.Push(pBackSocket->pFrontSocket);
+			//フロントソケット閉じて、プールに戻す。
+			if (pBackSocket->pFrontSocket)
+			{
+				DecStatusFront();
+				pBackSocket->pFrontSocket->ReInitialize();
+				gSocketsPool.Push(pBackSocket->pFrontSocket);
+			}
 
 			//バックソケットも閉じる。セマフォは解放しない。
 			pBackSocket->ReInitialize();
-			//再接続を試みる。
-			if (!BackTryConnect(pBackSocket))
-			{
-				stringstream  ss;
-				ss << "FrontSevEv. BackSocket. Stoped. ID:"<< pBackSocket->ID << " WSAEnumNetworkEvents.Reconnect failure."<< " LINE : " << __LINE__ <<"\r\n";
-				std::cerr << ss.str();
-				MyTRACE(ss.str().c_str());
-				//停止
-				while(TRUE)
-				{
-					++gLostBackSocket;
-				}
-			}
-			BackContextPool.Push(pBackSocket);
-			//セマフォ解放設定
-			ReleaseSemaphoreWhenCallbackReturns(Instance, gpSem.get(), 1);
 			return;
 		}
 
 		//読み込み可能
 		if (NetworkEvents.lNetworkEvents & FD_READ)
 		{
-			pBackSocket->pFrontSocket->ReadBuf.clear();
-			pBackSocket->pFrontSocket->ReadBuf.resize(BUFFER_SIZE, '\0');
+			pBackSocket->pFrontSocket->WriteBuf.clear();
+			pBackSocket->pFrontSocket->WriteBuf.resize(BUFFER_SIZE, '\0');
 			//フロントのバッファに直接読み込み。
-			int size = recv(pBackSocket->hSocket, pBackSocket->pFrontSocket->ReadBuf.data(), pBackSocket->pFrontSocket->ReadBuf.size(), 0);
+			int size = recv(pBackSocket->hSocket, pBackSocket->pFrontSocket->WriteBuf.data(), pBackSocket->pFrontSocket->WriteBuf.size(), 0);
 			if (size == SOCKET_ERROR)
 			{
-				pBackSocket->pFrontSocket->ReadBuf.clear();
+				pBackSocket->pFrontSocket->WriteBuf.clear();
 				Err = WSAGetLastError();
 				stringstream  ss;
 				ss << "FrontSevEv. Back recv Code: " << Err << " LINE: " << __LINE__ << "\r\n";
@@ -101,6 +89,7 @@ namespace FrontSevEv {
 				DecStatusFront();
 				pBackSocket->pFrontSocket->ReInitialize();
 				gSocketsPool.Push(pBackSocket->pFrontSocket);
+				pBackSocket->ReInitialize();
 				return;
 			}
 			//サイズの確認
@@ -112,53 +101,29 @@ namespace FrontSevEv {
 				std::cerr << ss.str();
 				MyTRACE(ss.str().c_str());
 				//フロントソケットはクローズ
-				FrontContext* pFrontSocket=pBackSocket->pFrontSocket;
-				pBackSocket->pFrontSocket = NULL;
 				DecStatusFront();
-				pFrontSocket->ReInitialize();
-				gSocketsPool.Push(pFrontSocket);
-
+				pBackSocket->pFrontSocket->ReInitialize();
+				gSocketsPool.Push(pBackSocket->pFrontSocket);
+				//バックソケットは解放しない。
 				pBackSocket->ReInitialize();
-				ss.clear();
-				if (!BackTryConnect(pBackSocket))
-				{
-					ss << "FrontSevEv. Back. Reconnect failure.ID:" << pBackSocket->ID << "\r\n";
-					MyTRACE(ss.str().c_str());
-					//バックソケットは使用禁止にする為セマフォを空けない。
-					//イベントも停止。
-					while(TRUE)
-					{
-						++gLostBackSocket;
-					}
-				}
-				ss << "FrontSevEv. Back. Reconnect success.ID:" << pBackSocket->ID << "\r\n";
-				MyTRACE(ss.str().c_str());
-				BackContextPool.Push(pBackSocket);
-
-				//正常終了セマフォ解放設定。
-				ReleaseSemaphoreWhenCallbackReturns(Instance, gpSem.get(), 1);
 				return;
 			}
 
 			//クライアントへ返信
-			pBackSocket->pFrontSocket->ReadBuf.resize(size);
-			int rsize = send(pBackSocket->pFrontSocket->hSocket, pBackSocket->pFrontSocket->ReadBuf.data(), pBackSocket->pFrontSocket->ReadBuf.size(), 0);
-			if (rsize == SOCKET_ERROR)
+			pBackSocket->pFrontSocket->WriteBuf.resize(size);
+			int sendsize = send(pBackSocket->pFrontSocket->hSocket, pBackSocket->pFrontSocket->WriteBuf.data(), size, 0);
+			if (sendsize == SOCKET_ERROR)
 			{
-				pBackSocket->pFrontSocket->ReadBuf.clear();
+				pBackSocket->pFrontSocket->WriteBuf.clear();
 				Err = WSAGetLastError();
 				stringstream  ss;
 				ss << "FrontSevEv. WSAEnumNetworkEvents. send Code: " << Err << " LINE: " << __LINE__ << "\r\n";
 				std::cerr << ss.str();
 				MyTRACE(ss.str().c_str());
+				//フロントソケットを閉じる。
 				DecStatusFront();
 				pBackSocket->pFrontSocket->ReInitialize();
 				gSocketsPool.Push(pBackSocket->pFrontSocket);
-				pBackSocket->pFrontSocket = NULL;
-				BackContextPool.Push(pBackSocket);
-				//セマフォ解放設定。
-				ReleaseSemaphoreWhenCallbackReturns(Instance, gpSem.get(), 1);
-				return;
 			}
 		}
 
@@ -173,9 +138,9 @@ namespace FrontSevEv {
 		ReleaseSemaphoreWhenCallbackReturns(Instance, gpSem.get(), 1);
 	}
 
-	//セマフォで書き込みの順番が回ってきた。
 	VOID WriteBackWaitCB(PTP_CALLBACK_INSTANCE Instance, PVOID Context, PTP_WAIT Wait, TP_WAIT_RESULT WaitResult)
 	{
+		//セマフォで書き込みの順番が回ってきた。
 		FrontContext* pSocket = (FrontContext*)Context;
 		if (WaitResult)
 		{
@@ -189,6 +154,9 @@ namespace FrontSevEv {
 
 		//フロントソケットと結びつけ。
 		pBackSocket->pFrontSocket = pSocket;
+		pSocket->pBackSocket = pBackSocket;
+
+		//データ取り出し
 		pSocket->vBufLock.acquire();
 		string str = pSocket->vBuf.front();
 		pSocket->vBuf.erase(pSocket->vBuf.begin());
@@ -205,40 +173,9 @@ namespace FrontSevEv {
 			cerr << ss.str();
 			MyTRACE(ss.str().c_str());
 			pBackSocket->ReInitialize();
-			//エラーの場合再接続を試みる。
-			if (!BackTryConnect(pBackSocket))
-			{
-				stringstream  ss;
-				ss << "FrontSevEv. Back send. Code:" << to_string(Err) << " LINE;" << __LINE__ << "\r\n";
-				cerr << ss.str();
-				MyTRACE(ss.str().c_str());
-				while (TRUE)
-				{
-					stringstream  ss;
-					//不能な為、STOP
-					ss << "Stop. Incompetent. BackSocket ID:" << pBackSocket->ID << " LINE:"<<__LINE__<<"\r\n";
-					cerr << ss.str();
-					MyTRACE(ss.str().c_str());
-					++gLostBackSocket;
-				}
-			}
-			//再接続後送信。
-			if (send(pBackSocket->hSocket, str.data(), str.length(), 0) == SOCKET_ERROR)
-			{
-				DWORD Err = WSAGetLastError();
-				stringstream  ss;
-				ss << "FrontSevEv. Back send. Code:" << to_string(Err) << " LINE;" << __LINE__ << "\r\n";
-				cerr << ss.str();
-				MyTRACE(ss.str().c_str());
-				while (TRUE)
-				{
-					stringstream  ss;
-					ss << "Stop. Incompetent. BackSocket ID:" << pBackSocket->ID << " LINE:" << __LINE__ << "\r\n";
-					cerr << ss.str();
-					MyTRACE(ss.str().c_str());
-					++gLostBackSocket;
-				}
-			}
+			DecStatusFront();
+			pBackSocket->pFrontSocket->ReInitialize();
+			
 		}
 		return VOID();
 	}
@@ -401,6 +338,7 @@ namespace FrontSevEv {
 			{
 				pBackSocket->ReInitialize();
 			}
+			BackContextPool.Push(pBackSocket);
 		}
 	}
 }

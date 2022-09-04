@@ -15,7 +15,7 @@ namespace FrontSevEv {
 		, vBufLock(1)
 		, hEvent(NULL)
 		, ptpwaitOnEvListen(NULL)
-		, BackContext(NULL)
+		, pBackSocket(NULL)
 		, pTPWait(NULL)
 	{
 		try {
@@ -80,7 +80,7 @@ namespace FrontSevEv {
 		ID = 0;
 		RemString.clear();
 		ReadBuf.clear();
-		BackContext = NULL;
+		pBackSocket = NULL;
 		vBufLock.release();
 	}
 }

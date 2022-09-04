@@ -40,6 +40,11 @@ namespace FrontSevEv {
 
 	void BackContext::ReInitialize()
 	{
+		if (pFrontSocket)
+		{
+			pFrontSocket->ReInitialize();
+			pFrontSocket = NULL;
+		}
 		if (pTPWait)
 		{
 			SetThreadpoolWait(pTPWait, NULL, 0);
@@ -57,7 +62,6 @@ namespace FrontSevEv {
 			closesocket(hSocket);
 			hSocket = NULL;
 		}
-		pFrontSocket = NULL;
 	}
 
 

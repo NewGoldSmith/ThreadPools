@@ -33,13 +33,14 @@ namespace FrontSevEv {
         void ReInitialize();
         SOCKET hSocket;
         u_short ID;
-        std::string ReadBuf;
+        string ReadBuf;
+        string WriteBuf;
         vector<string> vBuf;
         binary_semaphore vBufLock;
-        std::string RemString;
+        string RemString;
         WSAEVENT hEvent;
         PTP_WAIT ptpwaitOnEvListen;
-        BackContext* BackContext;
+        BackContext* pBackSocket;
         PTP_WAIT pTPWait;
     };
 }
