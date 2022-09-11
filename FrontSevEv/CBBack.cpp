@@ -175,7 +175,6 @@ namespace FrontSevEv {
 			pBackSocket->ReInitialize();
 			DecStatusFront();
 			pBackSocket->pFrontSocket->ReInitialize();
-			
 		}
 		return VOID();
 	}

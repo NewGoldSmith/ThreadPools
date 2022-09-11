@@ -12,7 +12,6 @@
 #include <iostream>
 #include <string>
 #include <semaphore>
-#include <mutex>
 #include <cassert>
 #include <exception>
 #include <SYS\Timeb.h >
