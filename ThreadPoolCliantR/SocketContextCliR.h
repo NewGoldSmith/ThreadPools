@@ -27,14 +27,14 @@ namespace ThreadPoolCliantR {
 	public:
 		SocketContext();
 		SocketContext(SocketContext&& moveSocket) = delete;
-		SocketContext(SocketContext& Socket) = delete;
+		SocketContext(SocketContext& SocketArray) = delete;
 		~SocketContext();
 		void ReInitialize();
 		ULONGLONG GetMaxResponce();
 		ULONGLONG GetMinResponce();
 		u_int FindAndConfirmCountDownNumber(const std::string& str);
 		SOCKET hSocket;
-		u_short ID;
+		u_short SocketID;
 		int CountDown;
 		std::string ReadString;
 		std::string WriteString;

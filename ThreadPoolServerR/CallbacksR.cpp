@@ -50,16 +50,16 @@ namespace ThreadPoolServerR {
 	const std::unique_ptr
 		< FILETIME
 		, void (*)(FILETIME*)
-		> gp1000msecFT
+		> p10secFT
 	{ []()
 		{
-			const auto gp1000msecFT = new FILETIME;
-			Make1000mSecFileTime(gp1000msecFT);
-			return gp1000msecFT;
+			const auto p10secFT = new FILETIME;
+			Make1000mSecFileTime(p10secFT);
+			return p10secFT;
 		}()
-	,[](_Inout_ FILETIME* gp1000msecFT)
+	,[](_Inout_ FILETIME* p10secFT)
 		{
-				delete gp1000msecFT;
+				delete p10secFT;
 		}
 	};
 
@@ -358,7 +358,7 @@ namespace ThreadPoolServerR {
 			++gCDel;
 			return false;
 		}
-		SetThreadpoolTimer(gpTPTimer, &*gp1000msecFT, 1000, 0);
+		SetThreadpoolTimer(gpTPTimer, &*p10secFT, 1000, 0);
 	}
 
 	void EndListen()

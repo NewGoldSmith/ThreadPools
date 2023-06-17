@@ -27,7 +27,7 @@ namespace ThreadPoolServerR {
         ~SocketContext();
         void ReInitialize();
         SOCKET hSocket;
-        u_short ID;
+        u_short SocketID;
         std::string Buf;
         std::string RemString;
         WSAEVENT hEvent;

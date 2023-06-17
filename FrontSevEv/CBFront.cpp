@@ -51,19 +51,19 @@ namespace FrontSevEv {
 	extern const unique_ptr
 		< FILETIME
 		, void (*)(FILETIME*)
-		> gp1000msecFT
+		> p10secFT
 	{ []()
 		{
-			const auto gp1000msecFT = new FILETIME;
+			const auto p10secFT = new FILETIME;
 			ULARGE_INTEGER ulDueTime;
 			ulDueTime.QuadPart = (ULONGLONG)-(1 * 10 * 1000 * 1000);
-			gp1000msecFT->dwHighDateTime = ulDueTime.HighPart;
-			gp1000msecFT->dwLowDateTime = ulDueTime.LowPart;
-			return gp1000msecFT;
+			p10secFT->dwHighDateTime = ulDueTime.HighPart;
+			p10secFT->dwLowDateTime = ulDueTime.LowPart;
+			return p10secFT;
 		}()
-	,[](_Inout_ FILETIME* gp1000msecFT)
+	,[](_Inout_ FILETIME* p10secFT)
 		{
-			delete gp1000msecFT;
+			delete p10secFT;
 		}
 	};
 
@@ -365,7 +365,7 @@ namespace FrontSevEv {
 			gSocketsPool.Push(gpListenSocket);
 			return false;
 		}
-		SetThreadpoolTimer(gpTPTimer, &*gp1000msecFT, 1000, 0);
+		SetThreadpoolTimer(gpTPTimer, &*p10secFT, 1000, 0);
 		return TRUE;
 	}
 
